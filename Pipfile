@@ -1,0 +1,14 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+rt_two = {path = "../../rt2", editable = true}
+neo4j = "*"
+
+[dev-packages]
+pytest = "*"
+
+[requires]
+python_version = "3.12"
