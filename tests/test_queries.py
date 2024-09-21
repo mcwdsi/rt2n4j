@@ -1,5 +1,5 @@
 from rt_core_v2.rttuple import ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNTuple, NtoRTuple, NtoCTuple, NtoDETuple, NtoLackRTuple, AttributesVisitor
-from rt2neo4j.queries import TupleInsertionVisitor
+from rt2_neo4j.queries import TupleInsertionVisitor
 from rt_core_v2.ids_codes.rui import Rui
 from neo4j import GraphDatabase
 

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "965fa0b6233868bb3df7496d51d82657229f80847063f247def82387282f425a"
+            "sha256": "8c49b071b4f7ab7b800d1e4bb25490fa7fc85a8c1bf6e0c2e82b63d6ae38f6a1"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -34,7 +34,7 @@
         },
         "rt-two": {
             "editable": true,
-            "path": "../rt2"
+            "path": "../../rt2"
         },
         "uuid6": {
             "hashes": [

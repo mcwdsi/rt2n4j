@@ -1,4 +1,4 @@
-from rt2neo4j.client import Neo4jRtStore
+from rt2_neo4j.client import Neo4jRtStore
 from rt_core_v2.rttuple import (
     ANTuple,
     ARTuple,

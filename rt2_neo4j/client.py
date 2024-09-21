@@ -2,7 +2,7 @@ from rt_core_v2.ids_codes.rui import Rui
 from rt_core_v2.rttuple import RtTuple
 from rt_core_v2.persist.rts_store import RtStore
 from neo4j import GraphDatabase
-from rt2neo4j.queries import TupleInsertionVisitor
+from rt2_neo4j.queries import TupleInsertionVisitor
 
 class Neo4jRtStore(RtStore):
 
