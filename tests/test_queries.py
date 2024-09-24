@@ -1,5 +1,5 @@
 from rt_core_v2.rttuple import ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNTuple, NtoRTuple, NtoCTuple, NtoDETuple, NtoLackRTuple, AttributesVisitor
-from rt2_neo4j.queries import TupleInsertionVisitor
+from rt2_neo4j.queries import TupleInsertionVisitor, tuple_query
 from rt_core_v2.ids_codes.rui import Rui
 from neo4j import GraphDatabase
 
@@ -16,7 +16,8 @@ driver = GraphDatabase.driver(uri, auth=auth, **config)
 with driver.session() as session:
     session.run("MATCH (n) DETACH DELETE n")
 get_attr = AttributesVisitor()
-get_query = TupleInsertionVisitor(driver)
+insert_tuple = TupleInsertionVisitor(driver)
+get_tuple = TupleQueryVisitor(driver)
 
 tuple_an = ANTuple()
 tuple_ar = ARTuple()
@@ -33,19 +34,19 @@ tuple_f = FTuple(C=0.32, ruitn=tuple_ntor.rui)
 # # tuple_ntode = NtoDETuple()
 tuple_ntolackr = NtoLackRTuple(ruin=replacement_two_an.ruin, ruir=tuple_ar.ruir, r=replacement_one_an.ruin)
 
-an_query = tuple_an.accept(get_query)
-ar_query = tuple_ar.accept(get_query)
-di_query = tuple_di.accept(get_query)
+an_query = tuple_an.accept(insert_tuple)
+ar_query = tuple_ar.accept(insert_tuple)
+di_query = tuple_di.accept(insert_tuple)
 
-replacement_one_an.accept(get_query)
-replacement_two_an.accept(get_query)
-dc_query = tuple_dc.accept(get_query)
-nton_query = tuple_nton.accept(get_query)
-ntor_query = tuple_ntor.accept(get_query)
-f_query = tuple_f.accept(get_query)
+replacement_one_an.accept(insert_tuple)
+replacement_two_an.accept(insert_tuple)
+dc_query = tuple_dc.accept(insert_tuple)
+nton_query = tuple_nton.accept(insert_tuple)
+ntor_query = tuple_ntor.accept(insert_tuple)
+f_query = tuple_f.accept(insert_tuple)
 # # ntoc_query = tuple_ntoc.accept(get_query)
 # # ntode_query = tuple_ntode.accept(get_query)
-ntolackr_query = tuple_ntolackr.accept(get_query)
+ntolackr_query = tuple_ntolackr.accept(insert_tuple)
 
 print(f'an: {an_query}\n')
 print(f'ar: {ar_query}\n')
@@ -57,3 +58,20 @@ print(f'ntor: {ntor_query}\n')
 # # print(f'ntoc: {ntoc_query}\n')
 # # print(f'ntode: {ntode_query}\n')
 print(f'ntolackr: {ntolackr_query}\n')
+
+retrieved_an = tuple_query(tuple_an.rui, driver)
+retrieved_ar = tuple_ar.accept(tuple_ar.rui, get_tuple)
+retrieved_di = tuple_di.accept(tuple_di.rui, get_tuple)
+retrieved_dc = tuple_dc.accept(tuple_dc.rui, get_tuple)
+retrieved_nton = tuple_nton.accept(tuple_nton.rui, get_tuple)
+retrieved_ntor = tuple_ntor.accept(tuple_ntor.rui, get_tuple)
+retrieved_f = tuple_f.accept(tuple_f.rui, get_tuple)
+retrieved_ntolackr = tuple_ntolackr.accept(tuple_ntolackr.rui, get_tuple)
+
+assert(retrieved_an == tuple_an)
+assert(retrieved_ar == tuple_ar)
+assert(retrieved_di == tuple_di)
+assert(retrieved_dc == tuple_dc)
+assert(retrieved_nton == tuple_nton)
+assert(retrieved_ntor == tuple_ntor)
+assert(retrieved_ntolackr == tuple_ntolackr)

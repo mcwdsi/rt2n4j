@@ -317,6 +317,183 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntolackr)-[:{RelationshipLabels.tr.value}]->(tr)
             """, **attributes)
 
+        
+
+def tuple_query(self, tuple_rui: Rui, driver):
+    """
+    Visits a tuple and generates a Cypher query based on the tuple's type.
+    Retrieves the data and recreates the corresponding RtTuple object.
+    
+    Args:
+        tuple_rui (Rui): The Rui of the tuple to be queried.
+        driver: The Neo4j database driver.
+
+    Returns:
+        RtTuple: The recreated tuple based on the retrieved data.
+    """
+    retrieved_tuple = None
+    with driver.session() as session:
+        with session.begin_transaction() as tx:
+            # First, determine the label of the node by matching the rui
+            result = tx.run(f"""
+                MATCH (node {{rui: $rui}})
+                RETURN labels(node) AS labels
+            """, rui=str(tuple_rui))
+
+            record = result.single()
+            if not record:
+                raise ValueError(f"No node found for Rui: {tuple_rui}")
+
+            labels = record["labels"]
+
+            # Match the node label to the correct tuple type
+            match labels:
+                case [NodeLabels.AN.value]:
+                    retrieved_tuple = self.query_an(tuple_rui, tx)
+                case [NodeLabels.AR.value]:
+                    retrieved_tuple = self.query_ar(tuple_rui, tx)
+                case [NodeLabels.DI.value]:
+                    retrieved_tuple = self.query_di(tuple_rui, tx)
+                case [NodeLabels.DC.value]:
+                    retrieved_tuple = self.query_dc(tuple_rui, tx)
+                case [NodeLabels.F.value]:
+                    retrieved_tuple = self.query_f(tuple_rui, tx)
+                case [NodeLabels.NtoN.value]:
+                    retrieved_tuple = self.query_nton(tuple_rui, tx)
+                case [NodeLabels.NtoR.value]:
+                    retrieved_tuple = self.query_ntor(tuple_rui, tx)
+                case [NodeLabels.NtoC.value]:
+                    retrieved_tuple = self.query_ntoc(tuple_rui, tx)
+                case [NodeLabels.NtoDE.value]:
+                    retrieved_tuple = self.query_ntode(tuple_rui, tx)
+                case [NodeLabels.NtoLackR.value]:
+                    retrieved_tuple = self.query_ntolackr(tuple_rui, tx)
+                case _:
+                    raise ValueError(f"Unknown tuple type for labels: {labels}")
+    return retrieved_tuple
+
+def query_an(rui: Rui, tx):
+    result = tx.run(f"""
+        MATCH (an:{NodeLabels.AN.value} {{rui: $rui}})
+        OPTIONAL MATCH (an)-[:{RelationshipLabels.ruin.value}]->(npor:{NodeLabels.NPoR.value})
+        RETURN an.ar AS ar, an.unique AS unique, an.rui AS rui, npor.rui AS ruin
+    """, rui=str(rui))
+    
+    record = result.single()
+    if record:
+        return ANTuple(rui=Rui(record["rui"]), ar=record["ar"], unique=record["unique"], ruin=Rui(record["ruin"]))
+    return None
+
+def query_ar(rui: Rui, tx):
+    result = tx.run(f"""
+        MATCH (ar:{NodeLabels.AR.value} {{rui: $rui}})
+        OPTIONAL MATCH (ar)-[:{RelationshipLabels.ruir.value}]->(rpor:{NodeLabels.RPoR.value})
+        RETURN ar.ar AS ar, ar.unique AS unique, ar.ruio AS ruio, ar.rui AS rui, rpor.rui AS ruir
+    """, rui=str(rui))
+    
+    record = result.single()
+    if record:
+        return ARTuple(rui=Rui(record["rui"]), ar=record["ar"], unique=record["unique"], ruio=record["ruio"], ruir=Rui(record["ruir"]))
+    return None
+
+def query_di(rui: Rui, tx):
+    result = tx.run(f"""
+        MATCH (di:{NodeLabels.DI.value} {{rui: $rui}})
+        OPTIONAL MATCH (di)-[:{RelationshipLabels.ruit.value}]->(ruit)
+        OPTIONAL MATCH (di)-[:{RelationshipLabels.ruid.value}]->(ruid)
+        OPTIONAL MATCH (di)-[:{RelationshipLabels.ruia.value}]->(ruia)
+        RETURN di.t AS t, di.event_reason AS event_reason, di.rui AS rui, 
+               ruit.rui AS ruit, ruid.rui AS ruid, ruia.rui AS ruia
+    """, rui=str(rui))
+    
+    record = result.single()
+    if record:
+        return DITuple(
+            rui=Rui(record["rui"]),
+            t=record["t"],
+            event_reason=record["event_reason"],
+            ruit=Rui(record["ruit"]),
+            ruid=Rui(record["ruid"]),
+            ruia=Rui(record["ruia"])
+        )
+    return None
+
+def query_dc(rui: Rui, tx):
+    result = tx.run(f"""
+        MATCH (dc:{NodeLabels.DC.value} {{rui: $rui}})
+        OPTIONAL MATCH (dc)-[:{RelationshipLabels.ruit.value}]->(ruit)
+        OPTIONAL MATCH (dc)-[:{RelationshipLabels.ruid.value}]->(ruid)
+        OPTIONAL MATCH (dc)-[:{RelationshipLabels.replacement.value}]->(replacement)
+        RETURN dc.t AS t, dc.event_reason AS event_reason, dc.event AS event, dc.rui AS rui,
+               ruit.rui AS ruit, ruid.rui AS ruid, collect(replacement.rui) AS replacements
+    """, rui=str(rui))
+    
+    record = result.single()
+    if record:
+        replacements = [Rui(repl) for repl in record["replacements"]]
+        return DCTuple(
+            rui=Rui(record["rui"]),
+            t=record["t"],
+            event_reason=record["event_reason"],
+            event=record["event"],
+            ruit=Rui(record["ruit"]),
+            ruid=Rui(record["ruid"]),
+            replacements=replacements
+        )
+    return None
+
+def query_f(rui: Rui, tx):
+    result = tx.run(f"""
+        MATCH (f:{NodeLabels.F.value} {{rui: $rui}})
+        RETURN f.C AS C, f.rui AS rui
+    """, rui=str(rui))
+    
+    record = result.single()
+    if record:
+        return FTuple(rui=Rui(record["rui"]), C=record["C"])
+    return None
+
+def query_nton(rui: Rui, tx):
+    result = tx.run(f"""
+        MATCH (nton:{NodeLabels.NtoN.value} {{rui: $rui}})
+        OPTIONAL MATCH (nton)-[:{RelationshipLabels.r.value}]->(r)
+        OPTIONAL MATCH (nton)-[:{RelationshipLabels.tr.value}]->(tr)
+        OPTIONAL MATCH (nton)-[:{RelationshipLabels.p_list.value}]->(p)
+        RETURN nton.polarity AS polarity, nton.rui AS rui, r.rui AS r, tr.rui AS tr, collect(p.rui) AS p_list
+    """, rui=str(rui))
+    
+    record = result.single()
+    if record:
+        p_list = [Rui(p) for p in record["p_list"]]
+        return NtoNTuple(
+            rui=Rui(record["rui"]),
+            polarity=record["polarity"],
+            r=Rui(record["r"]),
+            tr=Rui(record["tr"]),
+            p=p_list
+        )
+    return None
+
+def query_ntor(rui: Rui, tx):
+    result = tx.run(f"""
+        MATCH (ntor:{NodeLabels.NtoR.value} {{rui: $rui}})
+        OPTIONAL MATCH (ntor)-[:{RelationshipLabels.ruin.value}]->(ruin)
+        OPTIONAL MATCH (ntor)-[:{RelationshipLabels.ruir.value}]->(ruir)
+        RETURN ntor.polarity AS polarity, ntor.rui AS rui, ruin.rui AS ruin, ruir.rui AS ruir
+    """, rui=str(rui))
+
+    record = result.single()
+    if record:
+        return NtoRTuple(
+            rui=Rui(record["rui"]),
+            polarity=record["polarity"],
+            ruin=Rui(record["ruin"]),
+            ruir=Rui(record["ruir"])
+        )
+    return None
+
+
+
 """Removes a key from a dictionary and returns the value"""
 def pop_key(dict, key):
     value = dict[key]

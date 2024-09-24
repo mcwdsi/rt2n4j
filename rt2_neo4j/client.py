@@ -1,8 +1,8 @@
 from rt_core_v2.ids_codes.rui import Rui
-from rt_core_v2.rttuple import RtTuple
+from rt_core_v2.rttuple import RtTuple, RtTupleVisitor, TupleType, TupleComponents
 from rt_core_v2.persist.rts_store import RtStore
 from neo4j import GraphDatabase
-from rt2_neo4j.queries import TupleInsertionVisitor
+from rt2_neo4j.queries import TupleInsertionVisitor, tuple_query
 
 class Neo4jRtStore(RtStore):
 
@@ -14,31 +14,7 @@ class Neo4jRtStore(RtStore):
         tup.accept(self.insertion_visitor)
 
     def get_tuple(self, rui: Rui) -> RtTuple:
-        name = "n"
-        # query = query_rui_node()
-        # query += f'RETURN {name}'
-        # with self.driver.session() as session:
-        #     result = session.run(query, value=rui.lower())
-            
-        #     node = None
-        #     label = None
-            
-        #     for record in result:
-        #         n = record.get("n")
-        #         labels = record.get("labels(n)")
-        #         if n:
-        #             node = n
-        #         if labels:
-        #             for lbl in labels:
-        #                 if lbl != "tuple":
-        #                     label = lbl
-        #                     break
-        #         if node and label:
-        #             break
-            
-        #     # Assuming `reconstitute_tuple` is a method you have to construct RtsTuple
-        #     tuple = self.reconstitute_tuple(node, label, rui) if node and label else None
-        #     return tuple
+        return tuple_query(rui, self.driver)
 
     def get_by_referent(self, rui: Rui) -> set[RtTuple]:
         pass
@@ -63,4 +39,3 @@ class Neo4jRtStore(RtStore):
 
     def save_rts_declaration(self, declaration) -> bool:
         pass
-
