@@ -554,21 +554,38 @@ def query_nton(rui: Rui, tx):
         MATCH (nton:{NodeLabels.NtoN.value} {{rui: $rui}})
         OPTIONAL MATCH (nton)-[:{RelationshipLabels.r.value}]->(r)
         OPTIONAL MATCH (nton)-[:{RelationshipLabels.tr.value}]->(tr)
-        OPTIONAL MATCH (nton)-[:{RelationshipLabels.p_list.value}]->(p)
-        RETURN nton.polarity AS polarity, nton.rui AS rui, r.rui AS r, tr.rui AS tr, collect(p.rui) AS p_list
+        OPTIONAL MATCH (nton)-[rel:{RelationshipLabels.p_list.value}]->(p)
+        RETURN nton.polarity AS polarity, nton.rui AS rui, r.rui AS r, tr.rui AS tr, p.rui AS p_rui, rel.p AS p
+        ORDER BY p
     """, rui=str(rui))
-    
-    record = result.single()
-    if record:
-        p_list = [Rui(p) for p in record["p_list"]]
-        return NtoNTuple(
-            rui=Rui(record["rui"]),
-            polarity=record["polarity"],
-            r=Rui(record["r"]),
-            tr=Rui(record["tr"]),
-            p=p_list
-        )
+
+    records = result.data()
+
+    if records:
+        first_record = records[0]
+
+        p_list = []
+        for record in records:
+            print(f"Record: {record}")
+
+            if record["p_rui"]:
+                p_list.append((record["p_rui"], record["p"]))
+
+        p_list = sorted(p_list, key=lambda x: x[1])
+
+        ordered_p_list = [rui for rui, _ in p_list]
+
+        attributes = {
+            "polarity": first_record["polarity"],
+            "rui": first_record["rui"],
+            "r": first_record["r"],
+            "tr": first_record["tr"],
+            "p": ordered_p_list
+        }
+
+        return NtoNTuple(**neo4j_to_rttuple(attributes))
     return None
+
 
 def query_ntor(rui: Rui, tx):
     result = tx.run(f"""
