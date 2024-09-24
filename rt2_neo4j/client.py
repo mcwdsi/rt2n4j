@@ -35,7 +35,9 @@ class Neo4jRtStore(RtStore):
         self.driver.close()
 
     def commit(self):
+        #TODO Still figure out if I want transactions to be on a per commit or per function call basis
         pass
-
+    
+    #TODO Remove this function from superclass
     def save_rts_declaration(self, declaration) -> bool:
         pass

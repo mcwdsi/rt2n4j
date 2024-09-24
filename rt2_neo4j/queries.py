@@ -67,7 +67,8 @@ neo4j_entry_converter = {
     TupleComponents.ruit: Neo4jEntryConverter.str_to_rui,
     TupleComponents.ruitn: Neo4jEntryConverter.str_to_rui,
     TupleComponents.ruio: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.t: lambda x: x,
+    #TODO Change this for timestamp
+    TupleComponents.t: lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f"),
     TupleComponents.ta: Neo4jEntryConverter.process_temp_ref,
     TupleComponents.tr: Neo4jEntryConverter.process_temp_ref,
     TupleComponents.ar: lambda x: RuiStatus(x),
@@ -86,12 +87,13 @@ neo4j_entry_converter = {
 }
 
 def neo4j_to_rttuple(record) -> RtTuple:
-    """Map a json to an rttuple"""
+    """Map a dictionary containing neo4j tuple components to a tuple"""
     output = {}
     print(record.items())
     for key, value in record.items():
         try:
             entry = TupleComponents(key)
+            print(f'value {value} type {type(value)}')
             output[key] = neo4j_entry_converter[entry](value)
         except ValueError:
             # TODO Log error
@@ -490,7 +492,8 @@ def query_di(rui: Rui, tx):
         OPTIONAL MATCH (di)-[:{RelationshipLabels.ruit.value}]->(ruit)
         OPTIONAL MATCH (di)-[:{RelationshipLabels.ruid.value}]->(ruid)
         OPTIONAL MATCH (di)-[:{RelationshipLabels.ruia.value}]->(ruia)
-        RETURN di.t AS t, di.event_reason AS event_reason, di.rui AS rui, 
+        OPTIONAL MATCH (di)-[:{RelationshipLabels.ta.value}]->(ta)
+        RETURN di.t AS t, di.event_reason AS event_reason, di.rui AS rui, ta.rui AS ta,
                ruit.rui AS ruit, ruid.rui AS ruid, ruia.rui AS ruia
     """, rui=str(rui))
     

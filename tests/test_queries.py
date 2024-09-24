@@ -2,6 +2,7 @@ from rt_core_v2.rttuple import ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNT
 from rt2_neo4j.queries import TupleInsertionVisitor, tuple_query
 from rt_core_v2.ids_codes.rui import Rui
 from neo4j import GraphDatabase
+from time import sleep
 
 
 
@@ -67,6 +68,16 @@ retrieved_ntor = tuple_query(tuple_ntor.rui, driver)
 retrieved_f = tuple_query(tuple_f.rui, driver)
 retrieved_ntolackr = tuple_query(tuple_ntolackr.rui, driver)
 
+print(tuple_di.rui)
+print(retrieved_di.rui)
+print(tuple_di.ruit)
+print(retrieved_di.ruit)
+print(tuple_di.ruid)
+print(retrieved_di.ruid)
+print(tuple_di.ruia)
+print(retrieved_di.ruia)
+print(tuple_di.ta)
+print(retrieved_di.ta)
 assert(retrieved_an == tuple_an)
 assert(retrieved_ar == tuple_ar)
 assert(retrieved_di == tuple_di)
