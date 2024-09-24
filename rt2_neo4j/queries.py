@@ -67,7 +67,7 @@ neo4j_entry_converter = {
     TupleComponents.ruit: Neo4jEntryConverter.str_to_rui,
     TupleComponents.ruitn: Neo4jEntryConverter.str_to_rui,
     TupleComponents.ruio: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.t: Neo4jEntryConverter.process_temp_ref,
+    TupleComponents.t: lambda x: x,
     TupleComponents.ta: Neo4jEntryConverter.process_temp_ref,
     TupleComponents.tr: Neo4jEntryConverter.process_temp_ref,
     TupleComponents.ar: lambda x: RuiStatus(x),
@@ -88,6 +88,7 @@ neo4j_entry_converter = {
 def neo4j_to_rttuple(record) -> RtTuple:
     """Map a json to an rttuple"""
     output = {}
+    print(record.items())
     for key, value in record.items():
         try:
             entry = TupleComponents(key)
@@ -95,9 +96,9 @@ def neo4j_to_rttuple(record) -> RtTuple:
         except ValueError:
             # TODO Log error
             print(
-                f"Invalid rttuple-json processed due to key: {key} with entry: {value}. The processing of this tuple has been skipped."
+                f"Invalid neo4j-rttuple processed due to key: {key} with entry: {value}. The processing of this tuple has been skipped."
             )
-        return output
+    return output
 
 """
 Enum for defining various relationship labels used in Cypher queries.
@@ -122,7 +123,16 @@ class RelationshipLabels(Enum):
 class TupleInsertionVisitor(RtTupleVisitor):
     def __init__(self, driver):
         self.driver = driver
+    
 
+    def convert_att_neo4j(self, attribute):
+        att_type = attribute
+        if att_type == int or att_type == float or att_type == datetime or att_type == bool:
+            return attribute
+        elif isinstance(att_type, Enum):
+            return attribute.value
+        return str(attribute)
+    
     """
     Visitor class for handling different types of tuples and generating corresponding Cypher queries for insertion.
 
@@ -142,7 +152,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
         attributes = host.accept(self.get_attr)
         pop_key(attributes, TupleComponents.type.value)
         query = None
-        attributes = {key: str(value) for key, value in attributes.items()}
+        attributes = {key: self.convert_att_neo4j(value) for key, value in attributes.items()}
         #TODO Move session control out of insertion and into RtStore
         with self.driver.session() as session:
             with session.begin_transaction() as tx:
@@ -458,7 +468,8 @@ def query_an(rui: Rui, tx):
     
     record = result.single()
     if record:
-        return ANTuple(rui=Rui(uuid.UUID(record["rui"])), ar=RuiStatus(record["ar"]), unique=PorType(record["unique"]), ruin=Rui(uuid.UUID(record["ruin"])))
+        # return ANTuple(rui=Rui(uuid.UUID(record["rui"])), ar=RuiStatus(record["ar"]), unique=PorType(record["unique"]), ruin=Rui(uuid.UUID(record["ruin"])))
+        return ANTuple(**neo4j_to_rttuple(record))
     return None
 
 def query_ar(rui: Rui, tx):
@@ -470,7 +481,7 @@ def query_ar(rui: Rui, tx):
     
     record = result.single()
     if record:
-        return ARTuple(rui=Rui(record["rui"]), ar=record["ar"], unique=record["unique"], ruio=record["ruio"], ruir=Rui(record["ruir"]))
+        return ARTuple(**neo4j_to_rttuple(record))
     return None
 
 def query_di(rui: Rui, tx):
@@ -485,14 +496,7 @@ def query_di(rui: Rui, tx):
     
     record = result.single()
     if record:
-        return DITuple(
-            rui=Rui(record["rui"]),
-            t=record["t"],
-            event_reason=record["event_reason"],
-            ruit=Rui(record["ruit"]),
-            ruid=Rui(record["ruid"]),
-            ruia=Rui(record["ruia"])
-        )
+        return DITuple(**neo4j_to_rttuple(record))
     return None
 
 def query_dc(rui: Rui, tx):
