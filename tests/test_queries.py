@@ -68,8 +68,6 @@ retrieved_ntor = tuple_query(tuple_ntor.rui, driver)
 retrieved_f = tuple_query(tuple_f.rui, driver)
 retrieved_ntolackr = tuple_query(tuple_ntolackr.rui, driver)
 
-print(tuple_ntolackr)
-print(retrieved_ntolackr)
 
 
 assert(retrieved_an == tuple_an)

@@ -515,7 +515,6 @@ def query_dc(rui: Rui, tx):
     if records:
         first_record = records[0]  
         replacements = []
-        print(records)
         for record in records:
             if record["replacement_rui"]:
                 replacements.append((record["replacement_rui"], record["replacements"]))
@@ -566,8 +565,6 @@ def query_nton(rui: Rui, tx):
 
         p_list = []
         for record in records:
-            print(f"Record: {record}")
-
             if record["p_rui"]:
                 p_list.append((record["p_rui"], record["p"]))
 
