@@ -454,8 +454,7 @@ def tuple_query(tuple_rui: Rui, driver):
                     # retrieved_tuple = query_ntode(tuple_rui, tx)
                     pass
                 case [NodeLabels.NtoLackR.value]:
-                    # retrieved_tuple = query_ntolackr(tuple_rui, tx)
-                    pass
+                    retrieved_tuple = query_ntolackr(tuple_rui, tx)
                 case _:
                     raise ValueError(f"Unknown tuple type for labels: {labels}")
     return retrieved_tuple
@@ -541,7 +540,8 @@ def query_dc(rui: Rui, tx):
 def query_f(rui: Rui, tx):
     result = tx.run(f"""
         MATCH (f:{NodeLabels.F.value} {{rui: $rui}})
-        RETURN f.C AS C, f.rui AS rui
+        OPTIONAL MATCH (f)-[:{RelationshipLabels.ruitn.value}]->(ruitn)
+        RETURN f.C AS C, f.rui AS rui, ruitn.rui as ruitn
     """, rui=str(rui))
     
     record = result.single()
@@ -600,6 +600,22 @@ def query_ntor(rui: Rui, tx):
     record = result.single()
     if record:
         return NtoRTuple(**neo4j_to_rttuple(record))
+    return None
+
+
+def query_ntolackr(rui: Rui, tx):
+    result = tx.run(f"""
+        MATCH (ntolackr:{NodeLabels.NtoLackR.value} {{rui: $rui}})
+        OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.ruin.value}]->(ruin)
+        OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.ruir.value}]->(ruir)
+        OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.r.value}]->(r)
+        OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.tr.value}]->(tr)
+        RETURN ntolackr.rui AS rui, ruin.rui AS ruin, ruir.rui AS ruir, tr.rui AS tr, r.rui AS r
+    """, rui=str(rui))
+
+    record = result.single()
+    if record:
+        return NtoLackRTuple(**neo4j_to_rttuple(record))
     return None
 
 
