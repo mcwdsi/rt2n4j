@@ -1,7 +1,9 @@
-from rt_core_v2.rttuple import RtTupleVisitor, RtTuple, ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNTuple, NtoRTuple, NtoCTuple, NtoDETuple, NtoLackRTuple, TupleType, TupleComponents, AttributesVisitor, TempRef
+from rt_core_v2.rttuple import RtTupleVisitor, RtTuple, ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNTuple, NtoRTuple, NtoCTuple, NtoDETuple, NtoLackRTuple, TupleType, TupleComponents, AttributesVisitor, RuiStatus, PorType, TempRef
 from rt_core_v2.ids_codes.rui import Rui, Relationship
+from rt_core_v2.metadata import TupleEventType, RtChangeReason
 from enum import Enum
 from datetime import datetime
+import uuid
 
 """
 Enum for defining various node labels used in Cypher queries.
@@ -24,6 +26,78 @@ class NodeLabels(Enum):
     Temporal = "temp"
     Relation = "rel"
     Concept = "con"
+
+
+class Neo4jEntryConverter:
+    """Contains functions for converting neo4j representation to and from tuple representation"""
+    @staticmethod
+    def str_to_rui(x: str) -> Rui:
+        return Rui(uuid.UUID(x))
+    @staticmethod
+    def lst_to_ruis(x: list[str]) -> list[Rui]:
+        return [Rui(uuid.UUID(entry)) for entry in x]
+
+    @staticmethod
+    def str_to_str(x: str):
+        return x
+    
+    @staticmethod
+    def process_temp_ref(x: str):
+        #UUIDs do not contain colons. A bit hacky, so find a better way to differentiate.
+        if ':' in x:
+            format = "%Y-%m-%d %H:%M:%S.%f%z"
+            time_data = datetime.strptime(x, format)
+        else:
+            time_data = Rui(uuid.UUID(x))
+        return TempRef(time_data)
+    
+    @staticmethod
+    def str_to_relation(relation_str: str) -> Relationship:
+        return Relationship(relation_str)
+
+neo4j_entry_converter = {
+    TupleComponents.rui: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.ruin: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.ruia: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.ruid: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.ruin: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.ruir: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.ruics: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.ruidt: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.ruit: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.ruitn: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.ruio: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.t: Neo4jEntryConverter.process_temp_ref,
+    TupleComponents.ta: Neo4jEntryConverter.process_temp_ref,
+    TupleComponents.tr: Neo4jEntryConverter.process_temp_ref,
+    TupleComponents.ar: lambda x: RuiStatus(x),
+    TupleComponents.unique: lambda x: PorType(x),
+    TupleComponents.event: lambda x: TupleEventType(x),
+    TupleComponents.event_reason: lambda x: RtChangeReason(x),
+    TupleComponents.replacements: Neo4jEntryConverter.lst_to_ruis,
+    TupleComponents.p_list: Neo4jEntryConverter.lst_to_ruis,
+    TupleComponents.C: lambda x: float(x),
+    TupleComponents.polarity: lambda x: bool(x),
+    TupleComponents.r: Neo4jEntryConverter.str_to_rui,
+    # TODO Figure out the types of code and data
+    TupleComponents.code: Neo4jEntryConverter.str_to_str,
+    TupleComponents.data: Neo4jEntryConverter.str_to_str,
+    TupleComponents.type: lambda x: TupleType(x),
+}
+
+def neo4j_to_rttuple(record) -> RtTuple:
+    """Map a json to an rttuple"""
+    output = {}
+    for key, value in record.items():
+        try:
+            entry = TupleComponents(key)
+            output[key] = neo4j_entry_converter[entry](value)
+        except ValueError:
+            # TODO Log error
+            print(
+                f"Invalid rttuple-json processed due to key: {key} with entry: {value}. The processing of this tuple has been skipped."
+            )
+        return output
 
 """
 Enum for defining various relationship labels used in Cypher queries.
@@ -319,7 +393,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
 
         
 
-def tuple_query(self, tuple_rui: Rui, driver):
+def tuple_query(tuple_rui: Rui, driver):
     """
     Visits a tuple and generates a Cypher query based on the tuple's type.
     Retrieves the data and recreates the corresponding RtTuple object.
@@ -349,25 +423,28 @@ def tuple_query(self, tuple_rui: Rui, driver):
             # Match the node label to the correct tuple type
             match labels:
                 case [NodeLabels.AN.value]:
-                    retrieved_tuple = self.query_an(tuple_rui, tx)
+                    retrieved_tuple = query_an(tuple_rui, tx)
                 case [NodeLabels.AR.value]:
-                    retrieved_tuple = self.query_ar(tuple_rui, tx)
+                    retrieved_tuple = query_ar(tuple_rui, tx)
                 case [NodeLabels.DI.value]:
-                    retrieved_tuple = self.query_di(tuple_rui, tx)
+                    retrieved_tuple = query_di(tuple_rui, tx)
                 case [NodeLabels.DC.value]:
-                    retrieved_tuple = self.query_dc(tuple_rui, tx)
+                    retrieved_tuple = query_dc(tuple_rui, tx)
                 case [NodeLabels.F.value]:
-                    retrieved_tuple = self.query_f(tuple_rui, tx)
+                    retrieved_tuple = query_f(tuple_rui, tx)
                 case [NodeLabels.NtoN.value]:
-                    retrieved_tuple = self.query_nton(tuple_rui, tx)
+                    retrieved_tuple = query_nton(tuple_rui, tx)
                 case [NodeLabels.NtoR.value]:
-                    retrieved_tuple = self.query_ntor(tuple_rui, tx)
+                    retrieved_tuple = query_ntor(tuple_rui, tx)
                 case [NodeLabels.NtoC.value]:
-                    retrieved_tuple = self.query_ntoc(tuple_rui, tx)
+                    # retrieved_tuple = query_ntoc(tuple_rui, tx)
+                    pass
                 case [NodeLabels.NtoDE.value]:
-                    retrieved_tuple = self.query_ntode(tuple_rui, tx)
+                    # retrieved_tuple = query_ntode(tuple_rui, tx)
+                    pass
                 case [NodeLabels.NtoLackR.value]:
-                    retrieved_tuple = self.query_ntolackr(tuple_rui, tx)
+                    # retrieved_tuple = query_ntolackr(tuple_rui, tx)
+                    pass
                 case _:
                     raise ValueError(f"Unknown tuple type for labels: {labels}")
     return retrieved_tuple
@@ -381,7 +458,7 @@ def query_an(rui: Rui, tx):
     
     record = result.single()
     if record:
-        return ANTuple(rui=Rui(record["rui"]), ar=record["ar"], unique=record["unique"], ruin=Rui(record["ruin"]))
+        return ANTuple(rui=Rui(uuid.UUID(record["rui"])), ar=RuiStatus(record["ar"]), unique=PorType(record["unique"]), ruin=Rui(uuid.UUID(record["ruin"])))
     return None
 
 def query_ar(rui: Rui, tx):
