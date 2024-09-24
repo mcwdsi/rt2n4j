@@ -546,7 +546,7 @@ def query_f(rui: Rui, tx):
     
     record = result.single()
     if record:
-        return FTuple(rui=Rui(record["rui"]), C=record["C"])
+        return FTuple(**neo4j_to_rttuple(record))
     return None
 
 def query_nton(rui: Rui, tx):
@@ -592,17 +592,14 @@ def query_ntor(rui: Rui, tx):
         MATCH (ntor:{NodeLabels.NtoR.value} {{rui: $rui}})
         OPTIONAL MATCH (ntor)-[:{RelationshipLabels.ruin.value}]->(ruin)
         OPTIONAL MATCH (ntor)-[:{RelationshipLabels.ruir.value}]->(ruir)
-        RETURN ntor.polarity AS polarity, ntor.rui AS rui, ruin.rui AS ruin, ruir.rui AS ruir
+        OPTIONAL MATCH (ntor)-[:{RelationshipLabels.r.value}]->(r)
+        OPTIONAL MATCH (ntor)-[:{RelationshipLabels.tr.value}]->(tr)
+        RETURN ntor.polarity AS polarity, ntor.rui AS rui, ruin.rui AS ruin, ruir.rui AS ruir, tr.rui AS tr, r.rui AS r
     """, rui=str(rui))
 
     record = result.single()
     if record:
-        return NtoRTuple(
-            rui=Rui(record["rui"]),
-            polarity=record["polarity"],
-            ruin=Rui(record["ruin"]),
-            ruir=Rui(record["ruir"])
-        )
+        return NtoRTuple(**neo4j_to_rttuple(record))
     return None
 
 
