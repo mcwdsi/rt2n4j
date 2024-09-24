@@ -68,7 +68,7 @@ neo4j_entry_converter = {
     TupleComponents.ruitn: Neo4jEntryConverter.str_to_rui,
     TupleComponents.ruio: Neo4jEntryConverter.str_to_rui,
     #TODO Change this for timestamp
-    TupleComponents.t: lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f"),
+    TupleComponents.t: lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f%z"),
     TupleComponents.ta: Neo4jEntryConverter.process_temp_ref,
     TupleComponents.tr: Neo4jEntryConverter.process_temp_ref,
     TupleComponents.ar: lambda x: RuiStatus(x),
@@ -89,11 +89,10 @@ neo4j_entry_converter = {
 def neo4j_to_rttuple(record) -> RtTuple:
     """Map a dictionary containing neo4j tuple components to a tuple"""
     output = {}
-    print(record.items())
     for key, value in record.items():
         try:
             entry = TupleComponents(key)
-            print(f'value {value} type {type(value)}')
+            # print(f'value {value} type {type(value)}')
             output[key] = neo4j_entry_converter[entry](value)
         except ValueError:
             # TODO Log error
@@ -470,7 +469,6 @@ def query_an(rui: Rui, tx):
     
     record = result.single()
     if record:
-        # return ANTuple(rui=Rui(uuid.UUID(record["rui"])), ar=RuiStatus(record["ar"]), unique=PorType(record["unique"]), ruin=Rui(uuid.UUID(record["ruin"])))
         return ANTuple(**neo4j_to_rttuple(record))
     return None
 
@@ -507,24 +505,38 @@ def query_dc(rui: Rui, tx):
         MATCH (dc:{NodeLabels.DC.value} {{rui: $rui}})
         OPTIONAL MATCH (dc)-[:{RelationshipLabels.ruit.value}]->(ruit)
         OPTIONAL MATCH (dc)-[:{RelationshipLabels.ruid.value}]->(ruid)
-        OPTIONAL MATCH (dc)-[:{RelationshipLabels.replacement.value}]->(replacement)
+        OPTIONAL MATCH (dc)-[rel:{RelationshipLabels.replacement.value}]->(replacement)
         RETURN dc.t AS t, dc.event_reason AS event_reason, dc.event AS event, dc.rui AS rui,
-               ruit.rui AS ruit, ruid.rui AS ruid, collect(replacement.rui) AS replacements
+               ruit.rui AS ruit, ruid.rui AS ruid, replacement.rui AS replacement_rui, rel.replacements AS replacements
+        ORDER BY rel.replacements
     """, rui=str(rui))
-    
-    record = result.single()
-    if record:
-        replacements = [Rui(repl) for repl in record["replacements"]]
-        return DCTuple(
-            rui=Rui(record["rui"]),
-            t=record["t"],
-            event_reason=record["event_reason"],
-            event=record["event"],
-            ruit=Rui(record["ruit"]),
-            ruid=Rui(record["ruid"]),
-            replacements=replacements
-        )
+
+    records = result.data()
+
+    if records:
+        first_record = records[0]  
+        replacements = []
+        print(records)
+        for record in records:
+            if record["replacement_rui"]:
+                replacements.append((record["replacement_rui"], record["replacements"]))
+
+        replacements = sorted(replacements, key=lambda x: x[1])
+        ordered_replacements = [rui for rui, _ in replacements]
+        attributes = {
+            "t": first_record["t"],
+            "event_reason": first_record["event_reason"],
+            "event": first_record["event"],
+            "rui": first_record["rui"],
+            "ruit": first_record["ruit"],
+            "ruid": first_record["ruid"],
+            "replacements": ordered_replacements  
+        }
+
+        return DCTuple(**neo4j_to_rttuple(attributes))
+
     return None
+
 
 def query_f(rui: Rui, tx):
     result = tx.run(f"""
