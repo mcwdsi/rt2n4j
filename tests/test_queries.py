@@ -2,7 +2,6 @@ from rt_core_v2.rttuple import ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNT
 from rt2_neo4j.queries import TupleInsertionVisitor, tuple_query
 from rt_core_v2.ids_codes.rui import Rui
 from neo4j import GraphDatabase
-from time import sleep
 
 
 
@@ -55,8 +54,8 @@ ntolackr_query = tuple_ntolackr.accept(insert_tuple)
 # print(f'f: {f_query}\n') 
 # print(f'nton: {nton_query}\n')
 # print(f'ntor: {ntor_query}\n')
-# # # print(f'ntoc: {ntoc_query}\n')
-# # # print(f'ntode: {ntode_query}\n')
+# print(f'ntoc: {ntoc_query}\n')
+# print(f'ntode: {ntode_query}\n')
 # print(f'ntolackr: {ntolackr_query}\n')
 
 retrieved_an = tuple_query(tuple_an.rui, driver)
