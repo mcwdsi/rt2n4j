@@ -97,7 +97,6 @@ def neo4j_to_rttuple(record) -> RtTuple:
     for key, value in record.items():
         try:
             entry = TupleComponents(key)
-            # print(f'value {value} type {type(value)}')
             output[key] = neo4j_entry_converter[entry](value)
         except ValueError:
             # TODO Log error
@@ -504,11 +503,9 @@ def tuple_query(tuple_rui: Rui, driver):
                 case [NodeLabels.NtoR.value]:
                     retrieved_tuple = query_ntor(tuple_rui, tx)
                 case [NodeLabels.NtoC.value]:
-                    # retrieved_tuple = query_ntoc(tuple_rui, tx)
-                    pass
+                    retrieved_tuple = query_ntoc(tuple_rui, tx)
                 case [NodeLabels.NtoDE.value]:
-                    # retrieved_tuple = query_ntode(tuple_rui, tx)
-                    pass
+                    retrieved_tuple = query_ntode(tuple_rui, tx)
                 case [NodeLabels.NtoLackR.value]:
                     retrieved_tuple = query_ntolackr(tuple_rui, tx)
                 case _:
@@ -676,28 +673,43 @@ def query_ntoc(rui: Rui, tx):
     result = tx.run(f"""
         MATCH (ntoc:{NodeLabels.NtoC.value} {{rui: $rui}})
         OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.r.value}]->(r)
-        OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.ruics.value}]->(concept_class)
-        OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.ruin.value}]->(non_repeatable_por)
-        RETURN ntoc.polarity AS polarity, ntoc.rui AS rui, r.rui AS r, concept_class.rui AS ruics, 
-               non_repeatable_por.rui AS ruin, ntoc.code AS code, ntoc.tr AS time_relation
+        OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.ruin.value}]->(ruin)
+        OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.code.value}]->(code_node)-[:{RelationshipLabels.ruics.value}]->(ruics)
+        OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.tr.value}]->(tr)
+        RETURN ntoc.polarity AS polarity, ntoc.rui AS rui, r.rui AS r, ruin.rui AS ruin, 
+               code_node.code AS code, ruics.rui AS ruics, tr.rui AS tr
     """, rui=str(rui))
 
     record = result.single()
 
     if record:
-        attributes = {
-            "polarity": record["polarity"],
-            "rui": record["rui"],
-            "r": record["r"],
-            "ruics": record["ruics"],
-            "ruin": record["ruin"],
-            "code": record["code"],
-            "tr": record["time_relation"]
-        }
-
-        return NtoCTuple(**neo4j_to_rttuple(attributes))
+        return NtoCTuple(**neo4j_to_rttuple(record))
 
     return None
+
+
+def query_ntode(rui: Rui, tx):
+    result = tx.run(f"""
+        MATCH (ntode:{NodeLabels.NtoDE.value} {{rui: $rui}})
+        OPTIONAL MATCH (ntode)-[:{RelationshipLabels.ruin.value}]->(ruin)
+        OPTIONAL MATCH (ntode)-[:{RelationshipLabels.data.value}]->(data_node)-[:{RelationshipLabels.ruidt.value}]->(ruidt)
+        RETURN ntode.polarity AS polarity, ntode.rui AS rui, ruin.rui AS ruin, 
+               data_node.data AS data, ruidt.rui AS ruidt
+    """, rui=str(rui))
+
+    record = result.single()
+
+    if record:
+        record_dict = dict(record)
+
+        record_dict["data"] = base64.b64decode(record_dict["data"].encode('utf-8'))
+
+        return NtoDETuple(**neo4j_to_rttuple(record_dict))
+
+    return None
+
+
+
 
 """Removes a key from a dictionary and returns the value"""
 def pop_key(dict, key):
