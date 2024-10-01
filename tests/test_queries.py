@@ -28,7 +28,7 @@ tuple_nton = NtoNTuple(r=replacement_one_an.ruin, p=[replacement_one_an.ruin, re
 tuple_ntor = NtoRTuple(ruin=replacement_two_an.ruin, ruir=tuple_ar.ruir, r=replacement_one_an.ruin)
 tuple_f = FTuple(C=0.32, ruitn=tuple_ntor.rui)
 tuple_ntoc = NtoCTuple(code="Test_code", ruin=replacement_one_an.ruin, r=replacement_two_an.ruin, ruics=tuple_an.ruin)
-tuple_ntode = NtoDETuple(ruin=replacement_one_an.ruin, ruidt=replacement_two_an.ruin)
+tuple_ntode = NtoDETuple(ruin=replacement_one_an.ruin, ruidt=replacement_two_an.ruin, data=b'\x01\x02\x03\x04\x05')
 tuple_ntolackr = NtoLackRTuple(ruin=replacement_two_an.ruin, ruir=tuple_ar.ruir, r=replacement_one_an.ruin)
 
 
