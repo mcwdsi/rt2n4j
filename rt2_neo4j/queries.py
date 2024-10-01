@@ -128,8 +128,15 @@ class RelationshipLabels(Enum):
     code = TupleComponents.code.value
 
 class TupleInsertionVisitor(RtTupleVisitor):
+    """
+    Visitor class for handling different types of tuples and generating corresponding Cypher queries for insertion.
+
+    Attributes:
+    get_attr -- A static visitor that retrieves a tuple's attributes
+    """
+
     def __init__(self, driver):
-        self.driver = driver
+        self.tx = None
     
 
     def convert_att_neo4j(self, attribute):
@@ -140,12 +147,9 @@ class TupleInsertionVisitor(RtTupleVisitor):
             return attribute.value
         return str(attribute)
     
-    """
-    Visitor class for handling different types of tuples and generating corresponding Cypher queries for insertion.
-
-    Attributes:
-    get_attr -- A static visitor that retrieves a tuple's attributes
-    """
+    def set_transaction(self, tx):
+        self.tx = tx  # Set the transaction when it starts
+    
     get_attr = AttributesVisitor()
 
     def visit(self, host: RtTuple):
@@ -156,37 +160,37 @@ class TupleInsertionVisitor(RtTupleVisitor):
             host (RtTuple): The tuple to be visited.
 
         """
+        if self.tx is None:
+            raise RuntimeError("Transaction has not been set!")
         attributes = host.accept(self.get_attr)
         pop_key(attributes, TupleComponents.type.value)
         query = None
         attributes = {key: self.convert_att_neo4j(value) for key, value in attributes.items()}
         #TODO Move session control out of insertion and into RtStore
-        with self.driver.session() as session:
-            with session.begin_transaction() as tx:
-                match host.tuple_type:
-                    case TupleType.AN:
-                        query = self.visit_an(host, attributes, tx)
-                    case TupleType.AR:
-                        query = self.visit_ar(host, attributes, tx)
-                    case TupleType.DI:
-                        query = self.visit_di(host, attributes, tx)
-                    case TupleType.DC:
-                        query = self.visit_dc(host, attributes, tx)
-                    case TupleType.F:
-                        query = self.visit_f(host, attributes, tx)
-                    case TupleType.NtoN:
-                        query = self.visit_nton(host, attributes, tx)
-                    case TupleType.NtoR:
-                        query = self.visit_ntor(host, attributes, tx)
-                    case TupleType.NtoC:
-                        query = self.visit_ntoc(host, attributes, tx)
-                    case TupleType.NtoDE:
-                        query = self.visit_ntode(host, attributes, tx)
-                    case TupleType.NtoLackR:
-                        query = self.visit_ntolackr(host, attributes, tx)
+        match host.tuple_type:
+            case TupleType.AN:
+                query = self.visit_an(host, attributes)
+            case TupleType.AR:
+                query = self.visit_ar(host, attributes)
+            case TupleType.DI:
+                query = self.visit_di(host, attributes)
+            case TupleType.DC:
+                query = self.visit_dc(host, attributes)
+            case TupleType.F:
+                query = self.visit_f(host, attributes)
+            case TupleType.NtoN:
+                query = self.visit_nton(host, attributes)
+            case TupleType.NtoR:
+                query = self.visit_ntor(host, attributes)
+            case TupleType.NtoC:
+                query = self.visit_ntoc(host, attributes)
+            case TupleType.NtoDE:
+                query = self.visit_ntode(host, attributes)
+            case TupleType.NtoLackR:
+                query = self.visit_ntolackr(host, attributes)
         return query
 
-    def visit_an(self, host: ANTuple, attributes: dict, tx):
+    def visit_an(self, host: ANTuple, attributes: dict):
         """
         Generates a Cypher query for an ANTuple.
 
@@ -195,14 +199,14 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the ANTuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
                CREATE (an:{NodeLabels.AN.value} {{rui: $rui, ar: $ar, unique: $unique}}) 
                CREATE (npor:{NodeLabels.NPoR.value} {{rui:$ruin}})
                CREATE (an)-[:{RelationshipLabels.ruin.value}]->(npor)
                """, **attributes)
         
     
-    def visit_ar(self, host: ARTuple, attributes: dict, tx):
+    def visit_ar(self, host: ARTuple, attributes: dict):
         """
         Generates a Cypher query for an ARTuple.
 
@@ -211,13 +215,13 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the ARTuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
                CREATE (ar:{NodeLabels.AR.value} {{rui: $rui, ar: $ar, unique: $unique, ruio: $ruio}}) 
                CREATE (rpor:{NodeLabels.RPoR.value} {{rui:$ruir}})
                CREATE (ar)-[:{RelationshipLabels.ruir.value}]->(rpor)
                """, **attributes)
 
-    def visit_di(self, host: DITuple, attributes: dict, tx):
+    def visit_di(self, host: DITuple, attributes: dict):
         """
         Generates a Cypher query for a DITuple.
 
@@ -226,7 +230,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the DITuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
             CREATE (di:{NodeLabels.DI.value} {{rui: $rui, t: $t, event_reason: $event_reason}})
 
             WITH di
@@ -246,7 +250,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (di)-[:{RelationshipLabels.ta.value}]->(ta)
             """, **attributes)
 
-    def visit_dc(self, host: DCTuple, attributes: dict, tx):
+    def visit_dc(self, host: DCTuple, attributes: dict):
         """
         Generates a Cypher query for a DCTuple.
 
@@ -276,9 +280,9 @@ class TupleInsertionVisitor(RtTupleVisitor):
                     CREATE (dc)-[:{RelationshipLabels.replacement.value} {{replacements:{str(idx)}}}]->({TupleComponents.replacements.value})"""
             
         pop_key(attributes, TupleComponents.replacements.value)
-        return tx.run(query, **attributes)
+        return self.tx.run(query, **attributes)
 
-    def visit_f(self, host: FTuple, attributes: dict, tx):
+    def visit_f(self, host: FTuple, attributes: dict):
         """
         Generates a Cypher query for an FTuple.
 
@@ -287,14 +291,14 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the FTuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
                MATCH (tup {{rui:$ruitn}})
                CREATE (f:{NodeLabels.F.value} {{rui: $rui, C: $C}}) 
                CREATE (f)-[:{RelationshipLabels.ruitn.value}]->(tup)
                """, **attributes)
 
     # TODO Figure out how to implement relationship nodes
-    def visit_nton(self, host: NtoNTuple, attributes: dict, tx):
+    def visit_nton(self, host: NtoNTuple, attributes: dict):
         """
         Generates a Cypher query for an NtoNTuple.
 
@@ -323,9 +327,9 @@ class TupleInsertionVisitor(RtTupleVisitor):
                     CREATE (nton)-[:{RelationshipLabels.p_list.value} {{p:{str(idx)}}}]->({TupleComponents.p_list.value})"""
             
         pop_key(attributes, TupleComponents.p_list.value)
-        return tx.run(query, **attributes)
+        return self.tx.run(query, **attributes)
     
-    def visit_ntor(self, host: NtoRTuple, attributes: dict, tx):
+    def visit_ntor(self, host: NtoRTuple, attributes: dict):
         """
         Generates a Cypher query for an NtoRTuple.
 
@@ -334,7 +338,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the NtoRTuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
             CREATE (ntor:{NodeLabels.NtoR.value} {{rui: $rui, polarity: $polarity}})
 
             WITH ntor
@@ -354,7 +358,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntor)-[:{RelationshipLabels.tr.value}]->(tr)
             """, **attributes)
 
-    def visit_ntoc(self, host: NtoCTuple, attributes: dict, tx):
+    def visit_ntoc(self, host: NtoCTuple, attributes: dict):
         """
         Generates a Cypher query for an NtoCTuple, ensuring that the `code` node has a unique relationship to `ruics`.
 
@@ -362,7 +366,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             host (NtoCTuple): The NtoCTuple instance.
             attributes (dict): Attributes of the NtoCTuple.
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
             CREATE (ntoc:{NodeLabels.NtoC.value} {{rui: $rui, polarity: $polarity}})
 
             WITH ntoc
@@ -393,7 +397,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntoc)-[:{RelationshipLabels.tr.value}]->(tr)
         """, **attributes)
 
-    def visit_ntode(self, host: NtoDETuple, attributes: dict, tx):
+    def visit_ntode(self, host: NtoDETuple, attributes: dict):
         """
         Generates a Cypher query for an NtoDETuple, ensuring the `data` is stored in a separate node.
 
@@ -403,7 +407,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
         """
         attributes[TupleComponents.data.value] = base64.b64encode(host.data).decode('utf-8')
 
-        return tx.run(f"""
+        return self.tx.run(f"""
             CREATE (ntode:{NodeLabels.NtoDE.value} {{rui: $rui, polarity: $polarity}})
 
             WITH ntode
@@ -428,7 +432,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
         """, **attributes)
 
     
-    def visit_ntolackr(self, host: NtoLackRTuple, attributes: dict, tx):
+    def visit_ntolackr(self, host: NtoLackRTuple, attributes: dict):
         """
         Generates a Cypher query for an NtoLackRTuple.
 
@@ -437,7 +441,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the NtoLackRTuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
             CREATE (ntolackr:{NodeLabels.NtoLackR.value} {{rui: $rui}})
 
             WITH ntolackr
