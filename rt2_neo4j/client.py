@@ -23,25 +23,28 @@ class Neo4jRtStore(RtStore):
         pass
 
     def get_by_author(self, rui: Rui) -> set[RtTuple]:
-        with self.driver.session() as session:
-            result = session.read_transaction(lambda tx: tx.run(f"""
-                MATCH (d_tuple:D)-[:ruia]->(author {{rui: $ruia}})
-                MATCH (d_tuple)-[:ruit]->(ruit_tuple)
-                RETURN d_tuple
-            """, ruia=str(rui)))
+        tx = self.transaction_manager.start_transaction()  # Start the transaction
+        result = tx.run(f"""
+            MATCH (d_tuple:D)-[:ruia]->(author {{rui: $ruia}})
+            MATCH (d_tuple)-[:ruit]->(ruit_tuple)
+            RETURN ruit_tuple
+        """, ruia=str(rui))
 
-            # Collect and return all D-Tuples associated with the author
-            return set([tuple_query(record["d_tuple"]["rui"], self.driver) for record in result])
+        #TODO Convert the ruis to Rui objects
+        tuples = set([tuple_query(record["ruit_tuple"]["rui"], self.driver) for record in result])
+        return tuples
 
 
     def get_available_rui(self) -> Rui:
+        tx = self.transaction_manager.start_transaction()  # Start the transaction
         result = tx.run("""
             MATCH (n) WHERE EXISTS(n.rui)
             RETURN n.rui AS rui
         """)
 
-        # Collect and return all RUI values
-        return set([record["rui"] for record in result])
+        #TODO Convert the ruis from strings to uuids
+        ruis = set([Rui(record["rui"]) for record in result])
+        return ruis
 
     def get_by_type(self, referentType, designatorType, designatorText) -> set:
         pass
