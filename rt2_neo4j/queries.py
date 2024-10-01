@@ -402,7 +402,6 @@ class TupleInsertionVisitor(RtTupleVisitor):
             host (NtoDETuple): The NtoDETuple instance.
             attributes (dict): Attributes of the NtoDETuple.
         """
-        # Convert the byte data to a base64 string
         attributes[TupleComponents.data.value] = base64.b64encode(host.data).decode('utf-8')
 
         return tx.run(f"""
