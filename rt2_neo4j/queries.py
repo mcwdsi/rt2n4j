@@ -4,6 +4,7 @@ from rt_core_v2.metadata import TupleEventType, RtChangeReason
 from enum import Enum
 from datetime import datetime
 import uuid
+import base64
 
 """
 Enum for defining various node labels used in Cypher queries.
@@ -54,6 +55,10 @@ class Neo4jEntryConverter:
     @staticmethod
     def str_to_relation(relation_str: str) -> Relationship:
         return Relationship(relation_str)
+    
+    @staticmethod
+    def str_to_bytes(x: str):
+        return base64.b64decode(x)
 
 neo4j_entry_converter = {
     TupleComponents.rui: Neo4jEntryConverter.str_to_rui,
@@ -82,7 +87,7 @@ neo4j_entry_converter = {
     TupleComponents.r: Neo4jEntryConverter.str_to_rui,
     # TODO Figure out the types of code and data
     TupleComponents.code: Neo4jEntryConverter.str_to_str,
-    TupleComponents.data: Neo4jEntryConverter.str_to_str,
+    TupleComponents.data: Neo4jEntryConverter.str_to_bytes,
     TupleComponents.type: lambda x: TupleType(x),
 }
 
@@ -120,6 +125,8 @@ class RelationshipLabels(Enum):
     tr = TupleComponents.tr.value
     ruidt = TupleComponents.ruidt.value
     data = TupleComponents.data.value
+    ruics = TupleComponents.ruics.value
+    code = TupleComponents.code.value
 
 class TupleInsertionVisitor(RtTupleVisitor):
     def __init__(self, driver):
@@ -348,29 +355,79 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntor)-[:{RelationshipLabels.tr.value}]->(tr)
             """, **attributes)
 
-    # TODO Implement
     def visit_ntoc(self, host: NtoCTuple, attributes: dict, tx):
         """
-        Generates a Cypher query for an NtoCTuple.
+        Generates a Cypher query for an NtoCTuple, ensuring that the `code` node has a unique relationship to `ruics`.
 
         Args:
             host (NtoCTuple): The NtoCTuple instance.
             attributes (dict): Attributes of the NtoCTuple.
-
         """
-        labels = [NodeLabels.NtoC.value]
+        return tx.run(f"""
+            CREATE (ntoc:{NodeLabels.NtoC.value} {{rui: $rui, polarity: $polarity}})
 
-    #TODO Implement
+            WITH ntoc
+            MATCH (r {{rui: $r}})
+            CREATE (ntoc)-[:{RelationshipLabels.r.value}]->(r)
+
+            WITH ntoc
+            MATCH (ruin {{rui: $ruin}})
+            CREATE (ntoc)-[:{RelationshipLabels.ruin.value}]->(ruin)
+
+            WITH ntoc
+            MATCH (ruics {{rui: $ruics}})
+            OPTIONAL MATCH (code_node:Code {{code: $code}})-[:{RelationshipLabels.ruics.value}]->(ruics {{rui: $ruics}})
+            
+            WITH ntoc, code_node, ruics
+            CALL {{
+                WITH code_node, ruics
+                WITH * WHERE code_node IS NULL
+                CREATE (new_code_node:Code {{code: $code}})
+                CREATE (new_code_node)-[:{RelationshipLabels.ruics.value}]->(ruics)
+                RETURN new_code_node
+            }}
+            WITH ntoc, COALESCE(new_code_node, code_node) AS final_code_node
+            CREATE (ntoc)-[:{RelationshipLabels.code.value}]->(final_code_node)
+
+            WITH ntoc
+            MERGE (tr:{NodeLabels.Temporal.value} {{rui: $tr}})
+            CREATE (ntoc)-[:{RelationshipLabels.tr.value}]->(tr)
+        """, **attributes)
+
     def visit_ntode(self, host: NtoDETuple, attributes: dict, tx):
         """
-        Generates a Cypher query for an NtoDETuple.
+        Generates a Cypher query for an NtoDETuple, ensuring the `data` is stored in a separate node.
 
         Args:
             host (NtoDETuple): The NtoDETuple instance.
             attributes (dict): Attributes of the NtoDETuple.
-
         """
-        labels = [NodeLabels.NtoDE.value]
+        # Convert the byte data to a base64 string
+        attributes[TupleComponents.data.value] = base64.b64encode(host.data).decode('utf-8')
+
+        return tx.run(f"""
+            CREATE (ntode:{NodeLabels.NtoDE.value} {{rui: $rui, polarity: $polarity}})
+
+            WITH ntode
+            MATCH (ruin {{rui: $ruin}})
+            CREATE (ntode)-[:{RelationshipLabels.ruin.value}]->(ruin)
+
+            WITH ntode
+            MATCH (ruidt {{rui: $ruidt}})
+            OPTIONAL MATCH (data_node:{NodeLabels.Data.value} {{data: $data}})-[:{RelationshipLabels.ruidt.value}]->(ruidt)
+
+            WITH ntode, data_node, ruidt
+            CALL {{
+                WITH data_node, ruidt
+                WITH * WHERE data_node IS NULL
+                CREATE (new_data_node:{NodeLabels.Data.value} {{data: $data}})
+                CREATE (new_data_node)-[:{RelationshipLabels.ruidt.value}]->(ruidt)
+                RETURN new_data_node
+            }}
+            
+            WITH ntode, COALESCE(new_data_node, data_node) AS final_data_node
+            CREATE (ntode)-[:{RelationshipLabels.data.value}]->(final_data_node)
+        """, **attributes)
 
     
     def visit_ntolackr(self, host: NtoLackRTuple, attributes: dict, tx):
@@ -616,6 +673,32 @@ def query_ntolackr(rui: Rui, tx):
     return None
 
 
+def query_ntoc(rui: Rui, tx):
+    result = tx.run(f"""
+        MATCH (ntoc:{NodeLabels.NtoC.value} {{rui: $rui}})
+        OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.r.value}]->(r)
+        OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.ruics.value}]->(concept_class)
+        OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.ruin.value}]->(non_repeatable_por)
+        RETURN ntoc.polarity AS polarity, ntoc.rui AS rui, r.rui AS r, concept_class.rui AS ruics, 
+               non_repeatable_por.rui AS ruin, ntoc.code AS code, ntoc.tr AS time_relation
+    """, rui=str(rui))
+
+    record = result.single()
+
+    if record:
+        attributes = {
+            "polarity": record["polarity"],
+            "rui": record["rui"],
+            "r": record["r"],
+            "ruics": record["ruics"],
+            "ruin": record["ruin"],
+            "code": record["code"],
+            "tr": record["time_relation"]
+        }
+
+        return NtoCTuple(**neo4j_to_rttuple(attributes))
+
+    return None
 
 """Removes a key from a dictionary and returns the value"""
 def pop_key(dict, key):
