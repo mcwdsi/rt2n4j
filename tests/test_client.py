@@ -15,7 +15,7 @@ from rt_core_v2.rttuple import (
 from rt_core_v2.ids_codes.rui import Rui, TempRef
 
 
-storage = Neo4jRtStore(uri="neo4j://localhost:7687", auth=("neo4j", "neo4j_pass"))
+# storage = Neo4jRtStore(uri="neo4j://localhost:7687", auth=("neo4j", "neo4j_pass"))
 
 rui = Rui()
 ruin = Rui()
