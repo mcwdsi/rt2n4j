@@ -19,6 +19,7 @@ class Neo4jRtStore(RtStore):
         tx = self.transaction_manager.start_transaction()
         return tuple_query(rui, tx)
 
+    #TODO Decide if this is worth keeping
     def get_by_referent(self, rui: Rui) -> set[RtTuple]:
         pass
 
@@ -62,9 +63,6 @@ class Neo4jRtStore(RtStore):
         self.transaction_manager.close()
         self.driver.close()
 
-    #TODO Remove this function from superclass
-    def save_rts_declaration(self, declaration) -> bool:
-        pass
 
 #TODO Merge this with the RtStore implementation in order to manage the transactions
 class TransactionManager:

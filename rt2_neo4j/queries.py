@@ -672,7 +672,6 @@ def query_ntolackr(rui: Rui, tx):
         return NtoLackRTuple(**neo4j_to_rttuple(record))
     return None
 
-
 def query_ntoc(rui: Rui, tx):
     result = tx.run(f"""
         MATCH (ntoc:{NodeLabels.NtoC.value} {{rui: $rui}})
@@ -690,7 +689,6 @@ def query_ntoc(rui: Rui, tx):
         return NtoCTuple(**neo4j_to_rttuple(record))
 
     return None
-
 
 def query_ntode(rui: Rui, tx):
     result = tx.run(f"""
@@ -711,8 +709,6 @@ def query_ntode(rui: Rui, tx):
         return NtoDETuple(**neo4j_to_rttuple(record_dict))
 
     return None
-
-
 
 
 """Removes a key from a dictionary and returns the value"""

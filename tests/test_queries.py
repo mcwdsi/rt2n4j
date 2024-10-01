@@ -15,6 +15,8 @@ driver = GraphDatabase.driver(uri, auth=auth, **config)
 
 with driver.session() as session:
     session.run("MATCH (n) DETACH DELETE n")
+session = driver.session()
+tx = session.begin_transaction()
 get_attr = AttributesVisitor()
 insert_tuple = TupleInsertionVisitor(driver)
 
