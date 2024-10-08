@@ -459,7 +459,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
 
         
 
-def tuple_query(tuple_rui: Rui, driver):
+def tuple_query(tuple_rui: Rui, tx):
     """
     Visits a tuple and generates a Cypher query based on the tuple's type.
     Retrieves the data and recreates the corresponding RtTuple object.
@@ -472,44 +472,43 @@ def tuple_query(tuple_rui: Rui, driver):
         RtTuple: The recreated tuple based on the retrieved data.
     """
     retrieved_tuple = None
-    with driver.session() as session:
-        with session.begin_transaction() as tx:
-            # First, determine the label of the node by matching the rui
-            result = tx.run(f"""
-                MATCH (node {{rui: $rui}})
-                RETURN labels(node) AS labels
-            """, rui=str(tuple_rui))
+    
+    # First, determine the label of the node by matching the rui
+    result = tx.run(f"""
+        MATCH (node {{rui: $rui}})
+        RETURN labels(node) AS labels
+    """, rui=str(tuple_rui))
 
-            record = result.single()
-            if not record:
-                raise ValueError(f"No node found for Rui: {tuple_rui}")
+    record = result.single()
+    if not record:
+        raise ValueError(f"No node found for Rui: {tuple_rui}")
 
-            labels = record["labels"]
+    labels = record["labels"]
 
-            # Match the node label to the correct tuple type
-            match labels:
-                case [NodeLabels.AN.value]:
-                    retrieved_tuple = query_an(tuple_rui, tx)
-                case [NodeLabels.AR.value]:
-                    retrieved_tuple = query_ar(tuple_rui, tx)
-                case [NodeLabels.DI.value]:
-                    retrieved_tuple = query_di(tuple_rui, tx)
-                case [NodeLabels.DC.value]:
-                    retrieved_tuple = query_dc(tuple_rui, tx)
-                case [NodeLabels.F.value]:
-                    retrieved_tuple = query_f(tuple_rui, tx)
-                case [NodeLabels.NtoN.value]:
-                    retrieved_tuple = query_nton(tuple_rui, tx)
-                case [NodeLabels.NtoR.value]:
-                    retrieved_tuple = query_ntor(tuple_rui, tx)
-                case [NodeLabels.NtoC.value]:
-                    retrieved_tuple = query_ntoc(tuple_rui, tx)
-                case [NodeLabels.NtoDE.value]:
-                    retrieved_tuple = query_ntode(tuple_rui, tx)
-                case [NodeLabels.NtoLackR.value]:
-                    retrieved_tuple = query_ntolackr(tuple_rui, tx)
-                case _:
-                    raise ValueError(f"Unknown tuple type for labels: {labels}")
+    # Match the node label to the correct tuple type
+    match labels:
+        case [NodeLabels.AN.value]:
+            retrieved_tuple = query_an(tuple_rui, tx)
+        case [NodeLabels.AR.value]:
+            retrieved_tuple = query_ar(tuple_rui, tx)
+        case [NodeLabels.DI.value]:
+            retrieved_tuple = query_di(tuple_rui, tx)
+        case [NodeLabels.DC.value]:
+            retrieved_tuple = query_dc(tuple_rui, tx)
+        case [NodeLabels.F.value]:
+            retrieved_tuple = query_f(tuple_rui, tx)
+        case [NodeLabels.NtoN.value]:
+            retrieved_tuple = query_nton(tuple_rui, tx)
+        case [NodeLabels.NtoR.value]:
+            retrieved_tuple = query_ntor(tuple_rui, tx)
+        case [NodeLabels.NtoC.value]:
+            retrieved_tuple = query_ntoc(tuple_rui, tx)
+        case [NodeLabels.NtoDE.value]:
+            retrieved_tuple = query_ntode(tuple_rui, tx)
+        case [NodeLabels.NtoLackR.value]:
+            retrieved_tuple = query_ntolackr(tuple_rui, tx)
+        case _:
+            raise ValueError(f"Unknown tuple type for labels: {labels}")
     return retrieved_tuple
 
 def query_an(rui: Rui, tx):

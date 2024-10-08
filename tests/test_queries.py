@@ -39,7 +39,7 @@ def test_an():
     # Test inserting and retrieving an ANTuple
     an_query = tuple_an.accept(insert_tuple)
     print(f'an: {an_query}\n')
-    retrieved_an = tuple_query(tuple_an.rui, driver)
+    retrieved_an = tuple_query(tuple_an.rui, tx)
     assert(retrieved_an == tuple_an)
 
 
@@ -47,7 +47,7 @@ def test_ar():
     # Test inserting and retrieving an ARTuple
     ar_query = tuple_ar.accept(insert_tuple)
     print(f'ar: {ar_query}\n')
-    retrieved_ar = tuple_query(tuple_ar.rui, driver)
+    retrieved_ar = tuple_query(tuple_ar.rui, tx)
     assert(retrieved_ar == tuple_ar)
 
 
@@ -55,7 +55,7 @@ def test_di():
     # Test inserting and retrieving a DITuple
     di_query = tuple_di.accept(insert_tuple)
     print(f'di: {di_query}\n')
-    retrieved_di = tuple_query(tuple_di.rui, driver)
+    retrieved_di = tuple_query(tuple_di.rui, tx)
     assert(retrieved_di == tuple_di)
 
 
@@ -65,7 +65,7 @@ def test_dc():
     replacement_two_an.accept(insert_tuple)
     dc_query = tuple_dc.accept(insert_tuple)
     print(f'dc: {dc_query}\n')
-    retrieved_dc = tuple_query(tuple_dc.rui, driver)
+    retrieved_dc = tuple_query(tuple_dc.rui, tx)
     assert(retrieved_dc == tuple_dc)
 
 
@@ -73,7 +73,7 @@ def test_nton():
     # Test inserting and retrieving an NtoNTuple
     nton_query = tuple_nton.accept(insert_tuple)
     print(f'nton: {nton_query}\n')
-    retrieved_nton = tuple_query(tuple_nton.rui, driver)
+    retrieved_nton = tuple_query(tuple_nton.rui, tx)
     assert(retrieved_nton == tuple_nton)
 
 
@@ -81,7 +81,7 @@ def test_ntor():
     # Test inserting and retrieving an NtoRTuple
     ntor_query = tuple_ntor.accept(insert_tuple)
     print(f'ntor: {ntor_query}\n')
-    retrieved_ntor = tuple_query(tuple_ntor.rui, driver)
+    retrieved_ntor = tuple_query(tuple_ntor.rui, tx)
     assert(retrieved_ntor == tuple_ntor)
 
 
@@ -89,7 +89,7 @@ def test_f():
     # Test inserting and retrieving an FTuple
     f_query = tuple_f.accept(insert_tuple)
     print(f'f: {f_query}\n')
-    retrieved_f = tuple_query(tuple_f.rui, driver)
+    retrieved_f = tuple_query(tuple_f.rui, tx)
     assert(retrieved_f == tuple_f)
 
 
@@ -97,7 +97,7 @@ def test_ntoc():
     # Test inserting and retrieving an NtoCTuple
     ntoc_query = tuple_ntoc.accept(insert_tuple)
     print(f'ntoc: {ntoc_query}\n')
-    retrieved_ntoc = tuple_query(tuple_ntoc.rui, driver)
+    retrieved_ntoc = tuple_query(tuple_ntoc.rui, tx)
     assert(retrieved_ntoc == tuple_ntoc)
 
 
@@ -105,7 +105,7 @@ def test_ntode():
     # Test inserting and retrieving an NtoDETuple
     ntode_query = tuple_ntode.accept(insert_tuple)
     print(f'ntode: {ntode_query}\n')
-    retrieved_ntode = tuple_query(tuple_ntode.rui, driver)
+    retrieved_ntode = tuple_query(tuple_ntode.rui, tx)
     assert(retrieved_ntode == tuple_ntode)
 
 
@@ -113,5 +113,5 @@ def ntolackr():
     # Test inserting and retrieving an NtoLackRTuple
     ntolackr_query = tuple_ntolackr.accept(insert_tuple)
     print(f'ntolackr: {ntolackr_query}\n')
-    retrieved_ntolackr = tuple_query(tuple_ntolackr.rui, driver)
+    retrieved_ntolackr = tuple_query(tuple_ntolackr.rui, tx)
     assert(retrieved_ntolackr == tuple_ntolackr)
