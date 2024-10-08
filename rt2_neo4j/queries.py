@@ -472,7 +472,7 @@ def tuple_query(tuple_rui: Rui, tx):
         RtTuple: The recreated tuple based on the retrieved data.
     """
     retrieved_tuple = None
-    
+
     # First, determine the label of the node by matching the rui
     result = tx.run(f"""
         MATCH (node {{rui: $rui}})
@@ -698,8 +698,6 @@ def query_ntode(rui: Rui, tx):
 
     if record:
         record_dict = dict(record)
-
-        record_dict["data"] = base64.b64decode(record_dict["data"].encode('utf-8'))
 
         return NtoDETuple(**neo4j_to_rttuple(record_dict))
 
