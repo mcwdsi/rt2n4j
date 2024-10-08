@@ -18,7 +18,8 @@ with driver.session() as session:
 session = driver.session()
 tx = session.begin_transaction()
 get_attr = AttributesVisitor()
-insert_tuple = TupleInsertionVisitor(driver)
+insert_tuple = TupleInsertionVisitor()
+insert_tuple.set_transaction(tx)
 
 tuple_an = ANTuple()
 tuple_ar = ARTuple()

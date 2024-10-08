@@ -24,7 +24,7 @@ class Neo4jRtStore(RtStore):
         pass
 
     def get_by_author(self, rui: Rui) -> set[RtTuple]:
-        tx = self.transaction_manager.start_transaction()  # Start the transaction
+        tx = self.transaction_manager.start_transaction()
         result = tx.run(f"""
             MATCH (d_tuple:D)-[:ruia]->(author {{rui: $ruia}})
             MATCH (d_tuple)-[:ruit]->(ruit_tuple)
@@ -37,7 +37,7 @@ class Neo4jRtStore(RtStore):
 
 
     def get_available_rui(self) -> Rui:
-        tx = self.transaction_manager.start_transaction()  # Start the transaction
+        tx = self.transaction_manager.start_transaction()
         result = tx.run("""
             MATCH (n) WHERE EXISTS(n.rui)
             RETURN n.rui AS rui

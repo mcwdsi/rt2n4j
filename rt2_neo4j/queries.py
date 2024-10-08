@@ -72,7 +72,6 @@ neo4j_entry_converter = {
     TupleComponents.ruit: Neo4jEntryConverter.str_to_rui,
     TupleComponents.ruitn: Neo4jEntryConverter.str_to_rui,
     TupleComponents.ruio: Neo4jEntryConverter.str_to_rui,
-    #TODO Change this for timestamp
     TupleComponents.t: lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f%z"),
     TupleComponents.ta: Neo4jEntryConverter.process_temp_ref,
     TupleComponents.tr: Neo4jEntryConverter.process_temp_ref,
@@ -85,7 +84,6 @@ neo4j_entry_converter = {
     TupleComponents.C: lambda x: float(x),
     TupleComponents.polarity: lambda x: bool(x),
     TupleComponents.r: Neo4jEntryConverter.str_to_rui,
-    # TODO Figure out the types of code and data
     TupleComponents.code: Neo4jEntryConverter.str_to_str,
     TupleComponents.data: Neo4jEntryConverter.str_to_bytes,
     TupleComponents.type: lambda x: TupleType(x),
@@ -135,7 +133,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
     get_attr -- A static visitor that retrieves a tuple's attributes
     """
 
-    def __init__(self, driver):
+    def __init__(self):
         self.tx = None
     
 
@@ -382,8 +380,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             OPTIONAL MATCH (code_node:Code {{code: $code}})-[:{RelationshipLabels.ruics.value}]->(ruics {{rui: $ruics}})
             
             WITH ntoc, code_node, ruics
-            CALL {{
-                WITH code_node, ruics
+            CALL (code_node, ruics){{
                 WITH * WHERE code_node IS NULL
                 CREATE (new_code_node:Code {{code: $code}})
                 CREATE (new_code_node)-[:{RelationshipLabels.ruics.value}]->(ruics)
@@ -419,8 +416,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             OPTIONAL MATCH (data_node:{NodeLabels.Data.value} {{data: $data}})-[:{RelationshipLabels.ruidt.value}]->(ruidt)
 
             WITH ntode, data_node, ruidt
-            CALL {{
-                WITH data_node, ruidt
+            CALL (data_node, ruidt){{
                 WITH * WHERE data_node IS NULL
                 CREATE (new_data_node:{NodeLabels.Data.value} {{data: $data}})
                 CREATE (new_data_node)-[:{RelationshipLabels.ruidt.value}]->(ruidt)
