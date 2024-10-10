@@ -5,6 +5,7 @@ from enum import Enum
 from datetime import datetime
 import uuid
 import base64
+import re
 
 """
 Enum for defining various node labels used in Cypher queries.
@@ -33,7 +34,31 @@ class Neo4jEntryConverter:
     """Contains functions for converting neo4j representation to and from tuple representation"""
     @staticmethod
     def str_to_rui(x: str) -> Rui:
-        return Rui(uuid.UUID(x))
+        try:
+            val = uuid.UUID(x)
+            return Rui(val)
+        except ValueError:
+            pass
+        
+        iso8601_regex = (
+            r'^(-?(?:[1-9][0-9]*)?[0-9]{4})'  
+            r'-(1[0-2]|0[1-9])'               
+            r'-(3[01]|0[1-9]|[12][0-9])'      
+            r'T(2[0-3]|[01][0-9]):'           
+            r'([0-5][0-9]):'                  
+            r'([0-5][0-9]|60)'                
+            r'(?:\.(\d+))?'                   
+            r'(Z)$'
+        )
+    
+        if re.match(iso8601_regex, x):
+            try:
+                format = "%Y-%m-%d %H:%M:%S.%f%z"
+                return Rui(datetime.strptime(x, format))
+            except ValueError:
+                pass
+        return Rui(x)
+    
     @staticmethod
     def lst_to_ruis(x: list[str]) -> list[Rui]:
         # return [Rui(uuid.UUID(entry)) for entry in x]
