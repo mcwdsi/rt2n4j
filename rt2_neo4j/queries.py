@@ -36,7 +36,9 @@ class Neo4jEntryConverter:
         return Rui(uuid.UUID(x))
     @staticmethod
     def lst_to_ruis(x: list[str]) -> list[Rui]:
-        return [Rui(uuid.UUID(entry)) for entry in x]
+        # return [Rui(uuid.UUID(entry)) for entry in x]
+        return [Neo4jEntryConverter.str_to_rui(entry) for entry in x]
+
 
     @staticmethod
     def str_to_str(x: str):

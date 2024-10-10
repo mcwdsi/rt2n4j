@@ -2,7 +2,7 @@ from rt_core_v2.ids_codes.rui import Rui
 from rt_core_v2.rttuple import RtTuple, RtTupleVisitor, TupleType, TupleComponents
 from rt_core_v2.persist.rts_store import RtStore
 from neo4j import GraphDatabase
-from rt2_neo4j.queries import TupleInsertionVisitor, tuple_query
+from rt2_neo4j.queries import TupleInsertionVisitor, tuple_query, Neo4jEntryConverter
 
 class Neo4jRtStore(RtStore):
 
@@ -30,10 +30,7 @@ class Neo4jRtStore(RtStore):
             MATCH (d_tuple)-[:ruit]->(ruit_tuple)
             RETURN ruit_tuple
         """, ruia=str(rui))
-
-        #TODO Convert the ruis to Rui objects
-        tuples = set([tuple_query(record["ruit_tuple"]["rui"], self.driver) for record in result])
-        return tuples
+        return set([tuple_query(Neo4jEntryConverter.str_to_rui(record["ruit_tuple"]["rui"]), tx) for record in result])
 
 
     def get_available_rui(self) -> Rui:
@@ -42,13 +39,53 @@ class Neo4jRtStore(RtStore):
             MATCH (n) WHERE EXISTS(n.rui)
             RETURN n.rui AS rui
         """)
+        return set(Neo4jEntryConverter.lst_to_ruis([record["rui"] for record in result]))
 
-        #TODO Convert the ruis from strings to uuids
-        ruis = set([Rui(record["rui"]) for record in result])
-        return ruis
+    def get_referents_by_type_and_designator_type(self, referent_type: Rui, designator_type: Rui, designator_txt: str) -> Set[RtTuple]:
+        """
+        Retrieve referents based on a designator type and concretized string (designator_txt).
+        
+        Args:
+            referent_type (Rui): The Rui of the referent type (e.g., type of entity).
+            designator_type (Rui): The Rui of the designator type (e.g., name, identifier).
+            designator_txt (str): The exact string by which the designator is concretized.
 
-    def get_by_type(self, referentType, designatorType, designatorText) -> set:
-        pass
+        Returns:
+            Set[RtTuple]: A set of RtTuples representing the referents.
+        """
+
+        #TODO Look into changing this query rui
+        query = """
+        MATCH (n:instance)-[r1:iuip]-(o:U)-[:uui]->(q:universal), 
+              (n)-[p1:p]-(n2:NtoP)-[r:relation]->(n3:R), 
+              (n2)-[p2:p]->(n4), 
+              (n)-[r2:iuip]-(n5:NtoDE)-[:dr]->(n6:data) 
+        WHERE q.rui = $designatorType 
+          AND n3.rui = "http://purl.obolibrary.org/obo/IAO_0000219" 
+          AND n6.dr = $designatorTxt 
+        RETURN n4
+        """
+
+        parameters = {
+            "designatorType": str(designator_type),
+            "designatorTxt": designator_txt
+        }
+
+        result_set = set()
+        tx = self.transaction_manager.start_transaction()  # Start the transaction
+        result = tx.run(query, parameters)
+
+        for record in result:
+            node = record["n4"]
+            if "instance" in node.labels:
+                # Handling "instance" label (assuming it's similar to IUI)
+                rui_txt = Rui(node.get("iui"))
+                result_set.add(iui)
+            elif "temporal_region" in node.labels:
+                # Handling "temporal_region"
+                temporal_ref = self.get_temporal_reference_from_db(node)
+                result_set.add(temporal_ref)
+        return result_set
 
     def run_query(self, query) -> set[RtTuple]:
         pass
