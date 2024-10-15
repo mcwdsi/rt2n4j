@@ -44,7 +44,6 @@ class Neo4jRtStore(RtStore):
         return set(Neo4jEntryConverter.lst_to_ruis([record["rui"] for record in result]))
 
 
-    #TODO Finish this function by changing the types
     def get_referents_by_type_and_designator_type(self, referent_type: Rui, designator_type: Rui, designator_txt: bytes) -> set[RtTuple]:
         """
         Retrieve referents based on a designator type and concretized string (designator_txt).
