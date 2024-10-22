@@ -77,9 +77,9 @@ class Neo4jEntryConverter:
     @staticmethod
     def process_temp_ref(x: str):
         if ':' in x:
-            time_data = JsonEntryConverter.str_to_isorui(x)
+            time_data = Neo4jEntryConverter.str_to_isorui(x)
         else:
-            time_data = JsonEntryConverter.str_to_idrui(x)
+            time_data = Neo4jEntryConverter.str_to_idrui(x)
         return TempRef(time_data)
     
     @staticmethod
