@@ -1,4 +1,4 @@
-from rt_core_v2.rttuple import RtTupleVisitor, RtTuple, ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNTuple, NtoRTuple, NtoCTuple, NtoDETuple, NtoLackRTuple, TupleType, TupleComponents, AttributesVisitor, RuiStatus, PorType, TempRef
+from rt_core_v2.rttuple import RtTupleVisitor, RtTuple, ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNTuple, NtoRTuple, NtoCTuple, NtoDETuple, NtoLackRTuple, TupleType, TupleComponents, AttributesVisitor, RuiStatus, PorType, TempRef, ISO_Rui, ID_Rui
 from rt_core_v2.ids_codes.rui import Rui, Relationship
 from rt_core_v2.metadata import TupleEventType, RtChangeReason
 from enum import Enum
@@ -34,30 +34,10 @@ class Neo4jEntryConverter:
     """Contains functions for converting neo4j representation to and from tuple representation"""
     @staticmethod
     def str_to_rui(x: str) -> Rui:
-        try:
-            val = uuid.UUID(x)
-            return Rui(val)
-        except ValueError:
-            pass
-        
-        iso8601_regex = (
-            r'^(-?(?:[1-9][0-9]*)?[0-9]{4})'  
-            r'-(1[0-2]|0[1-9])'               
-            r'-(3[01]|0[1-9]|[12][0-9])'      
-            r'T(2[0-3]|[01][0-9]):'           
-            r'([0-5][0-9]):'                  
-            r'([0-5][0-9]|60)'                
-            r'(?:\.(\d+))?'                   
-            r'(Z)$'
-        )
-    
-        if re.match(iso8601_regex, x):
-            try:
-                format = "%Y-%m-%d %H:%M:%S.%f%z"
-                return Rui(datetime.strptime(x, format))
-            except ValueError:
-                pass
-        return Rui(x)
+        if ':' in x:
+            return Neo4jEntryConverter.str_to_isorui(x)
+        else:
+            return Neo4jEntryConverter.str_to_idrui(x)
     
     @staticmethod
     def lst_to_ruis(x: list[str]) -> list[Rui]:
@@ -66,17 +46,40 @@ class Neo4jEntryConverter:
 
 
     @staticmethod
+    def str_to_idrui(x: str) -> ID_Rui:
+        val = uuid.UUID(x)
+        return ID_Rui(val)
+    
+    @staticmethod
+    def str_to_isorui(x: str) -> ISO_Rui:
+        return ISO_Rui(datetime.strptime(x, Neo4jEntryConverter.format))
+
+    @staticmethod 
+    def str_to_uui(x: str) -> uuid.UUI:
+        return uuid.UUI(x)
+    
+    @staticmethod
+    def str_to_relationship(x: str) -> Relationship:
+        return Relationship(x)
+
+    @staticmethod
+    def lst_to_ruis(x: list[str]) -> list[Rui]:
+        return [Neo4jEntryConverter.str_to_rui(entry) for entry in x]
+
+    @staticmethod
     def str_to_str(x: str):
         return x
     
     @staticmethod
+    def process_datetime(x: str):
+        return datetime.strptime(x, Neo4jEntryConverter.format)
+    
+    @staticmethod
     def process_temp_ref(x: str):
-        #UUIDs do not contain colons. A bit hacky, so find a better way to differentiate.
         if ':' in x:
-            format = "%Y-%m-%d %H:%M:%S.%f%z"
-            time_data = datetime.strptime(x, format)
+            time_data = JsonEntryConverter.str_to_isorui(x)
         else:
-            time_data = Rui(uuid.UUID(x))
+            time_data = JsonEntryConverter.str_to_idrui(x)
         return TempRef(time_data)
     
     @staticmethod
@@ -88,18 +91,18 @@ class Neo4jEntryConverter:
         return base64.b64decode(x)
 
 neo4j_entry_converter = {
-    TupleComponents.rui: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruin: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruia: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruid: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruin: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruir: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruics: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruidt: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruit: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruitn: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruio: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.t: lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f%z"),
+    TupleComponents.rui: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruin: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruia: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruid: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruin: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruir: Neo4jEntryConverter.str_to_uui,
+    TupleComponents.ruics: Neo4jEntryConverter.str_to_uui,
+    TupleComponents.ruidt: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruit: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruitn: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruio: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.t: Neo4jEntryConverter.process_datetime,
     TupleComponents.ta: Neo4jEntryConverter.process_temp_ref,
     TupleComponents.tr: Neo4jEntryConverter.process_temp_ref,
     TupleComponents.ar: lambda x: RuiStatus(x),
@@ -110,7 +113,7 @@ neo4j_entry_converter = {
     TupleComponents.p_list: Neo4jEntryConverter.lst_to_ruis,
     TupleComponents.C: lambda x: float(x),
     TupleComponents.polarity: lambda x: bool(x),
-    TupleComponents.r: Neo4jEntryConverter.str_to_rui,
+    TupleComponents.r: Neo4jEntryConverter.str_to_relationship,
     TupleComponents.code: Neo4jEntryConverter.str_to_str,
     TupleComponents.data: Neo4jEntryConverter.str_to_bytes,
     TupleComponents.type: lambda x: TupleType(x),
