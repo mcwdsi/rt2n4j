@@ -9,12 +9,13 @@ class Neo4jRtStore(RtStore):
 
     def __init__(self, uri, auth, config={}):
         self.driver = GraphDatabase.driver(uri, auth=auth, **config)
-        self.insertion_visitor = TupleInsertionVisitor(self.driver)
+        self.insertion_visitor = TupleInsertionVisitor()
         self.transaction_manager = TransactionManager(self.driver)
 
     def save_tuple(self, tup: RtTuple) -> bool:
         tx = self.transaction_manager.start_transaction()
-        tup.accept(self.insertion_visitor, tx)
+        self.insertion_visitor.set_transaction(tx)
+        tup.accept(self.insertion_visitor)
 
     def get_tuple(self, rui: Rui) -> RtTuple:
         tx = self.transaction_manager.start_transaction()
@@ -24,14 +25,14 @@ class Neo4jRtStore(RtStore):
     def get_by_referent(self, rui: Rui) -> set[RtTuple]:
         pass
 
-    def get_by_author(self, rui: Rui) -> set[RtTuple]:
+    def get_by_author(self, rui: Rui) -> list[RtTuple]:
         tx = self.transaction_manager.start_transaction()
         result = tx.run(f"""
-            MATCH (d_tuple:D)-[:ruia]->(author {{rui: $ruia}})
+            MATCH (d_tuple:{NodeLabels.DI.value})-[:ruia]->(author {{rui: $ruia}})
             MATCH (d_tuple)-[:ruit]->(ruit_tuple)
-            RETURN ruit_tuple
+            RETURN ruit_tuple.rui AS rui
         """, ruia=str(rui))
-        return set([tuple_query(Neo4jEntryConverter.str_to_rui(record["ruit_tuple"]["rui"]), tx) for record in result])
+        return [self.get_tuple(Neo4jEntryConverter.str_to_rui(record["rui"])) for record in result]
 
 
     def get_available_rui(self) -> Rui:
@@ -214,22 +215,25 @@ class TransactionManager:
     def __init__(self, driver):
         self.driver = driver
         self.current_tx = None
+        self.session = None
 
     def start_transaction(self):
         if self.current_tx is None:
-            session = self.driver.session()
-            self.current_tx = session.begin_transaction()
+            self.session = self.driver.session()
+            self.current_tx = self.session.begin_transaction()
         return self.current_tx
 
     def commit_transaction(self):
         if self.current_tx is not None:
             self.current_tx.commit()
             self.current_tx = None
+            self.session.close()
 
     def rollback_transaction(self):
         if self.current_tx is not None:
             self.current_tx.rollback()
             self.current_tx = None
+            self.session.close()
 
     def close(self):
         if self.current_tx is not None:
