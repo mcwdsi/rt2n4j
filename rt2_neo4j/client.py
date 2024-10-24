@@ -1,7 +1,6 @@
 from rt_core_v2.ids_codes.rui import Rui
 from rt_core_v2.rttuple import RtTuple, RtTupleVisitor, TupleType, TupleComponents
-from rt_core_v2.rts_store import TupleQuery
-from rt_core_v2.persist.rts_store import RtStore
+from rt_core_v2.persist.rts_store import RtStore, TupleQuery
 from neo4j import GraphDatabase
 from rt2_neo4j.queries import TupleInsertionVisitor, tuple_query, Neo4jEntryConverter, NodeLabels, RelationshipLabels
 import base64

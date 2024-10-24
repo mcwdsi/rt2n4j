@@ -1,5 +1,5 @@
-from rt_core_v2.rttuple import RtTupleVisitor, RtTuple, ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNTuple, NtoRTuple, NtoCTuple, NtoDETuple, NtoLackRTuple, TupleType, TupleComponents, AttributesVisitor, RuiStatus, PorType, TempRef, ISO_Rui, ID_Rui
-from rt_core_v2.ids_codes.rui import Rui, Relationship
+from rt_core_v2.rttuple import RtTupleVisitor, RtTuple, ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNTuple, NtoRTuple, NtoCTuple, NtoDETuple, NtoLackRTuple, TupleType, TupleComponents, AttributesVisitor, RuiStatus, PorType
+from rt_core_v2.ids_codes.rui import ISO_Rui, ID_Rui, Rui, Relationship, TempRef, UUI
 from rt_core_v2.metadata import TupleEventType, RtChangeReason
 from enum import Enum
 from datetime import datetime
@@ -32,6 +32,7 @@ class NodeLabels(Enum):
 
 class Neo4jEntryConverter:
     """Contains functions for converting neo4j representation to and from tuple representation"""
+    format = "%Y-%m-%d %H:%M:%S.%f%z"
     @staticmethod
     def str_to_rui(x: str) -> Rui:
         if ':' in x:
@@ -55,8 +56,8 @@ class Neo4jEntryConverter:
         return ISO_Rui(datetime.strptime(x, Neo4jEntryConverter.format))
 
     @staticmethod 
-    def str_to_uui(x: str) -> uuid.UUI:
-        return uuid.UUI(x)
+    def str_to_uui(x: str) -> uuid.UUID:
+        return UUI(x)
     
     @staticmethod
     def str_to_relationship(x: str) -> Relationship:
@@ -339,7 +340,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (nton:{NodeLabels.NtoN.value} {{rui: $rui, polarity: $polarity}})
 
             WITH nton
-            MATCH (r {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{rui: $r}})
             CREATE (nton)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH nton
@@ -378,7 +379,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntor)-[:{RelationshipLabels.ruir.value}]->(ruir)
 
             WITH ntor
-            MATCH (r {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{rui: $r}})
             CREATE (ntor)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH ntor
@@ -394,11 +395,12 @@ class TupleInsertionVisitor(RtTupleVisitor):
             host (NtoCTuple): The NtoCTuple instance.
             attributes (dict): Attributes of the NtoCTuple.
         """
+        print(f"PRINTING CODE: {attributes['code']}")
         return self.tx.run(f"""
             CREATE (ntoc:{NodeLabels.NtoC.value} {{rui: $rui, polarity: $polarity}})
 
             WITH ntoc
-            MATCH (r {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{rui: $r}})
             CREATE (ntoc)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH ntoc
@@ -406,23 +408,24 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntoc)-[:{RelationshipLabels.ruin.value}]->(ruin)
 
             WITH ntoc
+            MERGE (tr:{NodeLabels.Temporal.value} {{rui: $tr}})
+            CREATE (ntoc)-[:{RelationshipLabels.tr.value}]->(tr)
+
+            WITH ntoc
             MATCH (ruics {{rui: $ruics}})
-            OPTIONAL MATCH (code_node:Code {{code: $code}})-[:{RelationshipLabels.ruics.value}]->(ruics {{rui: $ruics}})
-            
+            OPTIONAL MATCH (code_node:{NodeLabels.Concept.value} {{code: $code}})-[:{RelationshipLabels.ruics.value}]->(ruics {{rui: $ruics}})
+
             WITH ntoc, code_node, ruics
             CALL (code_node, ruics){{
                 WITH * WHERE code_node IS NULL
-                CREATE (new_code_node:Code {{code: $code}})
+                CREATE (new_code_node:{NodeLabels.Concept.value} {{code: $code}})
                 CREATE (new_code_node)-[:{RelationshipLabels.ruics.value}]->(ruics)
                 RETURN new_code_node
             }}
             WITH ntoc, COALESCE(new_code_node, code_node) AS final_code_node
             CREATE (ntoc)-[:{RelationshipLabels.code.value}]->(final_code_node)
-
-            WITH ntoc
-            MERGE (tr:{NodeLabels.Temporal.value} {{rui: $tr}})
-            CREATE (ntoc)-[:{RelationshipLabels.tr.value}]->(tr)
         """, **attributes)
+
 
     def visit_ntode(self, host: NtoDETuple, attributes: dict):
         """
@@ -479,7 +482,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntolackr)-[:{RelationshipLabels.ruir.value}]->(ruir)
 
             WITH ntolackr
-            MATCH (r {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{rui: $r}})
             CREATE (ntolackr)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH ntolackr
