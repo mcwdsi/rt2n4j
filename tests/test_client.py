@@ -1,8 +1,9 @@
 import pytest
 from rt2_neo4j.client import Neo4jRtStore
-from rt_core_v2.rttuple import ANTuple, ARTuple, DITuple, DCTuple
+from rt_core_v2.rttuple import ANTuple, ARTuple, DITuple, DCTuple, NtoDETuple
 from rt_core_v2.ids_codes.rui import Rui, ID_Rui
 from neo4j import GraphDatabase
+import base64
 
 # Setup the Neo4j connection
 uri = "neo4j://localhost:7687/"
@@ -52,3 +53,43 @@ def test_get_available_rui():
     # Verify that the ruis of the inserted tuples are in the returned set
     assert tuple_an.rui in available_rui
     assert tuple_ar.rui in available_rui
+
+# def setup_test_data():
+#     """
+#     Setup test data that will be used by get_referents_by_type_and_designator_type.
+#     """
+#     # Create and save an instance of the NtoNTuple and NtoDETuple with mock data
+#     designator_rui = ID_Rui()
+#     referent_rui = ID_Rui()
+#     designator_txt = b"test designator text"
+    
+#     # Create a tuple with an NtoDETuple to match designator criteria
+#     ntode_tuple = NtoDETuple(
+#         ruin=referent_rui,
+#         data=designator_txt,  # set data matching `designator_txt`
+#         ruidt=designator_rui  # type reference
+#     )
+
+#     # Insert data into Neo4j to set up query conditions
+#     store.save_tuple(ntode_tuple)
+#     store.commit()  # Ensure the transaction commits for the setup
+
+#     return referent_rui, designator_rui, designator_txt
+
+# def test_get_referents_by_type_and_designator_type():
+#     """
+#     Test retrieval of referents by type and designator type based on a specific designator text.
+#     """
+#     # Setup test data
+#     referent_rui, designator_rui, designator_txt = setup_test_data()
+
+#     # Call the function with test parameters
+#     result_set = store.get_referents_by_type_and_designator_type(referent_rui, designator_rui, designator_txt)
+
+#     # Verify that the result set contains the expected referents
+#     assert isinstance(result_set, set)
+#     assert len(result_set) > 0  # Check that there are results
+#     assert referent_rui in result_set  # Confirm the expected referent is in the result set
+
+#     # Clean up after the test if necessary (optional)
+#     store.transaction_manager.rollback_transaction()

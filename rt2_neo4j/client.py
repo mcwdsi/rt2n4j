@@ -35,13 +35,13 @@ class Neo4jRtStore(RtStore):
         return [self.get_tuple(Neo4jEntryConverter.str_to_rui(record["rui"])) for record in result]
 
 
-    def get_available_rui(self) -> Rui:
+    def get_available_rui(self) -> list[Rui]:
         tx = self.transaction_manager.start_transaction()
         result = tx.run("""
-            MATCH (n) WHERE EXISTS(n.rui)
+            MATCH (n) WHERE n.rui IS NOT NULL
             RETURN n.rui AS rui
         """)
-        return set(Neo4jEntryConverter.lst_to_ruis([record["rui"] for record in result]))
+        return Neo4jEntryConverter.lst_to_ruis([record["rui"] for record in result])
 
 
     def get_referents_by_type_and_designator_type(self, referent_type: Rui, designator_type: Rui, designator_txt: bytes) -> set[RtTuple]:

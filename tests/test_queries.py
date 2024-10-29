@@ -31,7 +31,7 @@ tuple_dc = DCTuple(ruid=replacement_one_an.ruin, ruit=tuple_an.rui, replacements
 tuple_nton = NtoNTuple(r=r, p=[replacement_one_an.ruin, replacement_two_an.ruin])
 tuple_ntor = NtoRTuple(ruin=replacement_two_an.ruin, ruir=tuple_ar.ruir, r=r)
 tuple_f = FTuple(C=0.32, ruitn=tuple_ntor.rui)
-tuple_ntoc = NtoCTuple(code="Test_code", ruin=replacement_one_an.ruin, r=r, ruics=tuple_ar.ruir)
+tuple_ntoc = NtoCTuple(code="Test_code", ruin=replacement_one_an.ruin, r=r, ruics=replacement_two_an.ruin)
 tuple_ntode = NtoDETuple(ruin=replacement_one_an.ruin, ruidt=replacement_two_an.ruin, data=b'\x01\x02\x03\x04\x05')
 tuple_ntolackr = NtoLackRTuple(ruin=replacement_two_an.ruin, ruir=tuple_ar.ruir, r=r)
 

@@ -98,7 +98,8 @@ neo4j_entry_converter = {
     TupleComponents.ruid: Neo4jEntryConverter.str_to_idrui,
     TupleComponents.ruin: Neo4jEntryConverter.str_to_idrui,
     TupleComponents.ruir: Neo4jEntryConverter.str_to_uui,
-    TupleComponents.ruics: Neo4jEntryConverter.str_to_uui,
+    #TODO Make sure the jsons are parsed correctly for this entry
+    TupleComponents.ruics: Neo4jEntryConverter.str_to_idrui,
     TupleComponents.ruidt: Neo4jEntryConverter.str_to_idrui,
     TupleComponents.ruit: Neo4jEntryConverter.str_to_idrui,
     TupleComponents.ruitn: Neo4jEntryConverter.str_to_idrui,
@@ -246,7 +247,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
         """
         return self.tx.run(f"""
                CREATE (ar:{NodeLabels.AR.value} {{rui: $rui, ar: $ar, unique: $unique, ruio: $ruio}}) 
-               CREATE (rpor:{NodeLabels.RPoR.value} {{rui:$ruir}})
+               CREATE (rpor:{NodeLabels.RPoR.value} {{uui:$ruir}})
                CREATE (ar)-[:{RelationshipLabels.ruir.value}]->(rpor)
                """, **attributes)
 
@@ -375,7 +376,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntor)-[:{RelationshipLabels.ruin.value}]->(ruin)
 
             WITH ntor
-            MATCH (ruir {{rui: $ruir}})
+            MATCH (ruir {{uui: $ruir}})
             CREATE (ntor)-[:{RelationshipLabels.ruir.value}]->(ruir)
 
             WITH ntor
@@ -395,7 +396,6 @@ class TupleInsertionVisitor(RtTupleVisitor):
             host (NtoCTuple): The NtoCTuple instance.
             attributes (dict): Attributes of the NtoCTuple.
         """
-        print(f"PRINTING CODE: {attributes['code']}")
         return self.tx.run(f"""
             CREATE (ntoc:{NodeLabels.NtoC.value} {{rui: $rui, polarity: $polarity}})
 
@@ -478,7 +478,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntolackr)-[:{RelationshipLabels.ruin.value}]->(ruin)
 
             WITH ntolackr
-            MATCH (ruir {{rui: $ruir}})
+            MATCH (ruir {{uui: $ruir}})
             CREATE (ntolackr)-[:{RelationshipLabels.ruir.value}]->(ruir)
 
             WITH ntolackr
@@ -560,7 +560,7 @@ def query_ar(rui: Rui, tx):
     result = tx.run(f"""
         MATCH (ar:{NodeLabels.AR.value} {{rui: $rui}})
         OPTIONAL MATCH (ar)-[:{RelationshipLabels.ruir.value}]->(rpor:{NodeLabels.RPoR.value})
-        RETURN ar.ar AS ar, ar.unique AS unique, ar.ruio AS ruio, ar.rui AS rui, rpor.rui AS ruir
+        RETURN ar.ar AS ar, ar.unique AS unique, ar.ruio AS ruio, ar.rui AS rui, rpor.uui AS ruir
     """, rui=str(rui))
     
     record = result.single()
@@ -676,7 +676,7 @@ def query_ntor(rui: Rui, tx):
         OPTIONAL MATCH (ntor)-[:{RelationshipLabels.ruir.value}]->(ruir)
         OPTIONAL MATCH (ntor)-[:{RelationshipLabels.r.value}]->(r)
         OPTIONAL MATCH (ntor)-[:{RelationshipLabels.tr.value}]->(tr)
-        RETURN ntor.polarity AS polarity, ntor.rui AS rui, ruin.rui AS ruin, ruir.rui AS ruir, tr.rui AS tr, r.rui AS r
+        RETURN ntor.polarity AS polarity, ntor.rui AS rui, ruin.rui AS ruin, ruir.uui AS ruir, tr.rui AS tr, r.rui AS r
     """, rui=str(rui))
 
     record = result.single()
@@ -692,7 +692,7 @@ def query_ntolackr(rui: Rui, tx):
         OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.ruir.value}]->(ruir)
         OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.r.value}]->(r)
         OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.tr.value}]->(tr)
-        RETURN ntolackr.rui AS rui, ruin.rui AS ruin, ruir.rui AS ruir, tr.rui AS tr, r.rui AS r
+        RETURN ntolackr.rui AS rui, ruin.rui AS ruin, ruir.uui AS ruir, tr.rui AS tr, r.rui AS r
     """, rui=str(rui))
 
     record = result.single()
