@@ -1,6 +1,6 @@
 import pytest
 from rt2_neo4j.client import Neo4jRtStore
-from rt_core_v2.rttuple import ANTuple, ARTuple, DITuple, DCTuple, NtoDETuple
+from rt_core_v2.rttuple import ANTuple, ARTuple, DITuple, DCTuple, NtoDETuple, NtoRTuple, NtoNTuple
 from rt_core_v2.ids_codes.rui import Rui, ID_Rui
 from neo4j import GraphDatabase
 import base64
@@ -41,55 +41,60 @@ def test_get_by_author():
 def test_get_available_rui():
     # Create tuples
     tuple_an = ANTuple()
-    tuple_ar = ARTuple()
+    tuple_an2 = ANTuple()
     
     # Save the tuples
     store.save_tuple(tuple_an)
-    store.save_tuple(tuple_ar)
+    store.save_tuple(tuple_an2)
     
     # Get all available ruis
     available_rui = store.get_available_rui()
     
     # Verify that the ruis of the inserted tuples are in the returned set
     assert tuple_an.rui in available_rui
-    assert tuple_ar.rui in available_rui
+    assert tuple_an2.rui in available_rui
 
-# def setup_test_data():
-#     """
-#     Setup test data that will be used by get_referents_by_type_and_designator_type.
-#     """
-#     # Create and save an instance of the NtoNTuple and NtoDETuple with mock data
-#     designator_rui = ID_Rui()
-#     referent_rui = ID_Rui()
-#     designator_txt = b"test designator text"
+def setup_test_data():
+    """
+    Setup test data that will be used by get_referents_by_type_and_designator_type.
+    """
+    # Create and save an instance of the NtoNTuple and NtoDETuple with mock data
+    designator_rui = ID_Rui()
+    referent_rui = ID_Rui()
+    designator_txt = b"test designator text"
     
-#     # Create a tuple with an NtoDETuple to match designator criteria
-#     ntode_tuple = NtoDETuple(
-#         ruin=referent_rui,
-#         data=designator_txt,  # set data matching `designator_txt`
-#         ruidt=designator_rui  # type reference
-#     )
+    data_type_creator = ANTuple(ruin=designator_rui)
+    named_creator = ANTuple(ruin=referent_rui)
+    repeatable_creator = ARTuple()
+    ntor_rel = NtoRTuple(ruin=data_type_creator.ruin, ruir=repeatable_creator.ruir)
 
-#     # Insert data into Neo4j to set up query conditions
-#     store.save_tuple(ntode_tuple)
-#     store.commit()  # Ensure the transaction commits for the setup
+    nton_rel = NtoNTuple(r="http://purl.obolibrary.org/obo/IAO_0000219", p=[designator_rui, referent_rui])
 
-#     return referent_rui, designator_rui, designator_txt
+    ntode_tuple = NtoDETuple(
+        ruin=data_type_creator.ruin,
+        data=designator_txt,  
+        ruidt=repeatable_creator.ruir 
+    )
+    # Insert data into Neo4j to set up query conditions
+    store.save_tuple(named_creator)
+    store.save_tuple(data_type_creator)
+    store.save_tuple(repeatable_creator)
+    store.save_tuple(ntor_rel)
+    store.save_tuple(nton_rel)
+    store.save_tuple(ntode_tuple)
+    store.commit()  
 
-# def test_get_referents_by_type_and_designator_type():
-#     """
-#     Test retrieval of referents by type and designator type based on a specific designator text.
-#     """
-#     # Setup test data
-#     referent_rui, designator_rui, designator_txt = setup_test_data()
+    return referent_rui, repeatable_creator.ruir, designator_txt
 
-#     # Call the function with test parameters
-#     result_set = store.get_referents_by_type_and_designator_type(referent_rui, designator_rui, designator_txt)
+def test_get_referents_by_type_and_designator_type():
+    """
+    Test retrieval of referents by type and designator type based on a specific designator text.
+    """
+    referent_rui, designator_rui, designator_txt = setup_test_data()
 
-#     # Verify that the result set contains the expected referents
-#     assert isinstance(result_set, set)
-#     assert len(result_set) > 0  # Check that there are results
-#     assert referent_rui in result_set  # Confirm the expected referent is in the result set
+    result_set = store.get_referents_by_type_and_designator_type(referent_rui, designator_rui, designator_txt)
 
-#     # Clean up after the test if necessary (optional)
-#     store.transaction_manager.rollback_transaction()
+    assert len(result_set) > 0 
+    assert referent_rui in result_set
+
+    store.transaction_manager.rollback_transaction()

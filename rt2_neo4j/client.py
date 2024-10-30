@@ -57,34 +57,29 @@ class Neo4jRtStore(RtStore):
             Set[RtTuple]: A set of RtTuples representing the referents.
         """
         designator_str = base64.b64encode(designator_txt).decode('utf-8')
-        #TODO Figure out why this is the query being done?
         query = f"""
         MATCH (n:{NodeLabels.NPoR.value})-[r1:{RelationshipLabels.ruin.value}]-(o:{NodeLabels.NtoR.value})-[:{RelationshipLabels.ruir.value}]->(q:{NodeLabels.RPoR.value}), 
               (n)-[p1:{RelationshipLabels.p_list.value}]-(n2:{NodeLabels.NtoN.value})-[r:{RelationshipLabels.r.value}]->(n3:{NodeLabels.Relation.value}), 
               (n2)-[p2:{RelationshipLabels.p_list.value}]->(n4), 
               (n)-[r2:{RelationshipLabels.ruin.value}]-(n5:{NodeLabels.NtoDE.value})-[:{RelationshipLabels.data.value}]->(n6:{NodeLabels.Data.value}) 
-        WHERE q.rui = $designator_type 
-          AND n3.rui = "http://purl.obolibrary.org/obo/IAO_0000219" 
+        WHERE q.uui = $designator_type 
+          AND n3.uri = "http://purl.obolibrary.org/obo/IAO_0000219" 
           AND n6.data = $designator_str
         RETURN n4
         """
-
         parameters = {
             "designator_type": str(designator_type),
             "designator_str": designator_str
         }
 
-        result_set = set()
+        result_set = []
         tx = self.transaction_manager.start_transaction()  # Start the transaction
         result = tx.run(query, parameters)
 
         for record in result:
             node = record["n4"]
             if NodeLabels.NPoR.value in node.labels:
-                result_set.add(Neo4jEntryConverter.str_to_rui(node.get("rui")))
-            elif NodeLabels.Temporal.value in node.labels:
-                temporal_ref = self.get_temporal_reference_from_db(node)
-                result_set.add(temporal_ref)
+                result_set.append(Neo4jEntryConverter.str_to_rui(node.get("rui")))
         return result_set
 
     def run_query(self, query: TupleQuery) -> set:
@@ -97,7 +92,7 @@ class Neo4jRtStore(RtStore):
             match_conditions.append(f"MATCH (n)-[:ta]->({node_name}:{NodeLabels.Temporal.value})")
             match_where.append(f"{node_name}.tref = '{query.ta}'")
 
-        # Author IUI
+        # Author Rui
         if query.author_rui:
             node_name = "niuia"
             match_conditions.append(f"MATCH (n)-[:iuia]->({node_name}:{NodeLabels.NPoR.value})")
@@ -134,13 +129,13 @@ class Neo4jRtStore(RtStore):
             match_conditions.append(f"MATCH (n)-[:iuins]->({node_name}:Instance)")
             match_where.append(f"{node_name}.iui = '{query.universal_rui}'")
 
-        # Referent RUI
+        # Referent Rui
         if query.relationship_rui:
             node_name = "niuip"
             match_conditions.append(f"MATCH (n)-[:iuip]->({node_name}:Instance)")
             match_where.append(f"{node_name}.iui = '{query.relationship_rui}'")
 
-        # Relationship URI
+        # Relationship Uui
         if query.relationship_rui:
             node_name = "nr"
             match_conditions.append(f"MATCH (n)-[:r]->({node_name}:Relation)")
@@ -195,7 +190,7 @@ class Neo4jRtStore(RtStore):
         return result_set
 
     def reconstitute_tuple(self, node, label, rui):
-        # Recreate the RtsTuple (or similar) based on node properties, label, and rui
+        # Recreate the RtsTuple
         # This function is a placeholder and should be implemented to properly convert the node to an RtsTuple
         pass
 
@@ -210,7 +205,6 @@ class Neo4jRtStore(RtStore):
         self.transaction_manager.close()
         self.driver.close()
 
-#TODO Learn how to setup schemas for remote database when creating it
 class TransactionManager:
     def __init__(self, driver):
         self.driver = driver

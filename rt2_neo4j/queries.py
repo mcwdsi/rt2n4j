@@ -341,7 +341,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (nton:{NodeLabels.NtoN.value} {{rui: $rui, polarity: $polarity}})
 
             WITH nton
-            MERGE (r:{NodeLabels.Relation.value} {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{uri: $r}})
             CREATE (nton)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH nton
@@ -380,7 +380,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntor)-[:{RelationshipLabels.ruir.value}]->(ruir)
 
             WITH ntor
-            MERGE (r:{NodeLabels.Relation.value} {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{uri: $r}})
             CREATE (ntor)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH ntor
@@ -400,7 +400,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntoc:{NodeLabels.NtoC.value} {{rui: $rui, polarity: $polarity}})
 
             WITH ntoc
-            MERGE (r:{NodeLabels.Relation.value} {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{uri: $r}})
             CREATE (ntoc)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH ntoc
@@ -445,7 +445,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntode)-[:{RelationshipLabels.ruin.value}]->(ruin)
 
             WITH ntode
-            MATCH (ruidt {{rui: $ruidt}})
+            MATCH (ruidt {{uui: $ruidt}})
             OPTIONAL MATCH (data_node:{NodeLabels.Data.value} {{data: $data}})-[:{RelationshipLabels.ruidt.value}]->(ruidt)
 
             WITH ntode, data_node, ruidt
@@ -482,7 +482,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntolackr)-[:{RelationshipLabels.ruir.value}]->(ruir)
 
             WITH ntolackr
-            MERGE (r:{NodeLabels.Relation.value} {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{uri: $r}})
             CREATE (ntolackr)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH ntolackr
