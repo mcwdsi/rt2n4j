@@ -639,7 +639,7 @@ def query_nton(rui: Rui, tx):
         OPTIONAL MATCH (nton)-[:{RelationshipLabels.r.value}]->(r)
         OPTIONAL MATCH (nton)-[:{RelationshipLabels.tr.value}]->(tr)
         OPTIONAL MATCH (nton)-[rel:{RelationshipLabels.p_list.value}]->(p)
-        RETURN nton.polarity AS polarity, nton.rui AS rui, r.rui AS r, tr.rui AS tr, p.rui AS p_rui, rel.p AS p
+        RETURN nton.polarity AS polarity, nton.rui AS rui, r.uri AS r, tr.rui AS tr, p.rui AS p_rui, rel.p AS p
         ORDER BY p
     """, rui=str(rui))
 
@@ -676,7 +676,7 @@ def query_ntor(rui: Rui, tx):
         OPTIONAL MATCH (ntor)-[:{RelationshipLabels.ruir.value}]->(ruir)
         OPTIONAL MATCH (ntor)-[:{RelationshipLabels.r.value}]->(r)
         OPTIONAL MATCH (ntor)-[:{RelationshipLabels.tr.value}]->(tr)
-        RETURN ntor.polarity AS polarity, ntor.rui AS rui, ruin.rui AS ruin, ruir.uui AS ruir, tr.rui AS tr, r.rui AS r
+        RETURN ntor.polarity AS polarity, ntor.rui AS rui, ruin.rui AS ruin, ruir.uui AS ruir, tr.rui AS tr, r.uri AS r
     """, rui=str(rui))
 
     record = result.single()
@@ -692,7 +692,7 @@ def query_ntolackr(rui: Rui, tx):
         OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.ruir.value}]->(ruir)
         OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.r.value}]->(r)
         OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.tr.value}]->(tr)
-        RETURN ntolackr.rui AS rui, ruin.rui AS ruin, ruir.uui AS ruir, tr.rui AS tr, r.rui AS r
+        RETURN ntolackr.rui AS rui, ruin.rui AS ruin, ruir.uui AS ruir, tr.rui AS tr, r.uri AS r
     """, rui=str(rui))
 
     record = result.single()
@@ -707,7 +707,7 @@ def query_ntoc(rui: Rui, tx):
         OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.ruin.value}]->(ruin)
         OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.code.value}]->(code_node)-[:{RelationshipLabels.ruics.value}]->(ruics)
         OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.tr.value}]->(tr)
-        RETURN ntoc.polarity AS polarity, ntoc.rui AS rui, r.rui AS r, ruin.rui AS ruin, 
+        RETURN ntoc.polarity AS polarity, ntoc.rui AS rui, r.uri AS r, ruin.rui AS ruin, 
                code_node.code AS code, ruics.rui AS ruics, tr.rui AS tr
     """, rui=str(rui))
 
@@ -724,7 +724,7 @@ def query_ntode(rui: Rui, tx):
         OPTIONAL MATCH (ntode)-[:{RelationshipLabels.ruin.value}]->(ruin)
         OPTIONAL MATCH (ntode)-[:{RelationshipLabels.data.value}]->(data_node)-[:{RelationshipLabels.ruidt.value}]->(ruidt)
         RETURN ntode.polarity AS polarity, ntode.rui AS rui, ruin.rui AS ruin, 
-               data_node.data AS data, ruidt.rui AS ruidt
+               data_node.data AS data, ruidt.uui AS ruidt
     """, rui=str(rui))
 
     record = result.single()

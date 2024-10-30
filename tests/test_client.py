@@ -97,4 +97,4 @@ def test_get_referents_by_type_and_designator_type():
     assert len(result_set) > 0 
     assert referent_rui in result_set
 
-    store.transaction_manager.rollback_transaction()
+    store.transaction_manager.close()

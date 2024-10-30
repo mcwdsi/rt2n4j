@@ -189,11 +189,6 @@ class Neo4jRtStore(RtStore):
 
         return result_set
 
-    def reconstitute_tuple(self, node, label, rui):
-        # Recreate the RtsTuple
-        # This function is a placeholder and should be implemented to properly convert the node to an RtsTuple
-        pass
-
 
     def commit(self):
         self.transaction_manager.commit_transaction()
