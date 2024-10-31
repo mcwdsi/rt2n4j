@@ -716,6 +716,7 @@ def query_ntoc(rui: Rui, tx):
     return None
 
 def query_ntode(rui: Rui, tx):
+    #TODO Not properly retrieving the data
     result = tx.run(f"""
         MATCH (ntode:{NodeLabels.NtoDE.value} {{rui: $rui}})
         OPTIONAL MATCH (ntode)-[:{RelationshipLabels.ruin.value}]->(ruin)
@@ -725,7 +726,7 @@ def query_ntode(rui: Rui, tx):
     """, rui=str(rui))
 
     record = result.single()
-
+    print(record["data"])
     if record:
         record_dict = dict(record)
 
