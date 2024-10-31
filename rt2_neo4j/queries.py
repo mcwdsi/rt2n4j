@@ -98,7 +98,6 @@ neo4j_entry_converter = {
     TupleComponents.ruid: Neo4jEntryConverter.str_to_idrui,
     TupleComponents.ruin: Neo4jEntryConverter.str_to_idrui,
     TupleComponents.ruir: Neo4jEntryConverter.str_to_uui,
-    #TODO Make sure the jsons are parsed correctly for this entry
     TupleComponents.ruics: Neo4jEntryConverter.str_to_idrui,
     TupleComponents.ruidt: Neo4jEntryConverter.str_to_idrui,
     TupleComponents.ruit: Neo4jEntryConverter.str_to_idrui,
@@ -196,7 +195,6 @@ class TupleInsertionVisitor(RtTupleVisitor):
         pop_key(attributes, TupleComponents.type.value)
         query = None
         attributes = {key: self.convert_att_neo4j(value) for key, value in attributes.items()}
-        #TODO Move session control out of insertion and into RtStore
         match host.tuple_type:
             case TupleType.AN:
                 query = self.visit_an(host, attributes)
@@ -327,7 +325,6 @@ class TupleInsertionVisitor(RtTupleVisitor):
                CREATE (f)-[:{RelationshipLabels.ruitn.value}]->(tup)
                """, **attributes)
 
-    # TODO Figure out how to implement relationship nodes
     def visit_nton(self, host: NtoNTuple, attributes: dict):
         """
         Generates a Cypher query for an NtoNTuple.

@@ -1,4 +1,4 @@
-from rt_core_v2.ids_codes.rui import Rui
+from rt_core_v2.ids_codes.rui import Rui, ID_Rui, ISO_Rui
 from rt_core_v2.rttuple import RtTuple, RtTupleVisitor, TupleType, TupleComponents
 from rt_core_v2.persist.rts_store import RtStore, TupleQuery
 from neo4j import GraphDatabase
@@ -82,110 +82,117 @@ class Neo4jRtStore(RtStore):
                 result_set.append(Neo4jEntryConverter.str_to_rui(node.get("rui")))
         return result_set
 
-    def run_query(self, query: TupleQuery) -> set:
+    def build_condition(self, match_conditions, rel, node_name, node_label):
+        match_conditions.append(f",(n)-[:{rel}]-({node_name}:{node_label})")
+
+    def build_where(self, match_where, node_name, property_name, value):
+        if match_where:
+            match_where.append(" AND ")
+        match_where.append(f"{node_name}.{property_name}='{value}'")
+
+    def run_query(self, tuple_query: TupleQuery):
         match_conditions = []
         match_where = []
 
-        # Authoring time
-        if query.ta:
-            node_name = "nta"
-            match_conditions.append(f"MATCH (n)-[:ta]->({node_name}:{NodeLabels.Temporal.value})")
-            match_where.append(f"{node_name}.tref = '{query.ta}'")
+        if tuple_query.rui:
+            self.build_where(match_where, "n", "rui", str(tuple_query.rui))
 
-        # Author Rui
-        if query.author_rui:
-            node_name = "niuia"
-            match_conditions.append(f"MATCH (n)-[:iuia]->({node_name}:{NodeLabels.NPoR.value})")
-            match_where.append(f"{node_name}.iui = '{query.author_rui}'")
+        if tuple_query.repeatable_rui:
+            self.build_condition(match_conditions, RelationshipLabels.ruir.value, "nrui", NodeLabels.RPoR.value)
+            self.build_where(match_where, "nrui", "uui", str(tuple_query.repeatable_rui))
 
-        # Change reason
-        if query.change_reason:
-            match_where.append(f"n.c = '{query.change_reason}'")
+        if tuple_query.nonrepeatable_rui:
+            self.build_condition(match_conditions, RelationshipLabels.ruin.value, "nnrui", NodeLabels.NPoR.value)
+            self.build_where(match_where, "nnrui", "rui", str(tuple_query.nonrepeatable_rui))
 
-        # Tuple Rui
-        if query.rui:
-            match_where.append(f"n.rui = '{query.rui}'")
+        #TODO Figure out how if querying over timestamps should query only over d-tuples or their referents too
+        # if tuple_query.begin_timestamp:
+        #     self.build_where(match_where, "n", "beginTimestamp", str(tuple_query.begin_timestamp))
 
-        # Data field
-        if query.data:
-            node_name = "ndr"
-            data_as_string = base64.b64encode(query.data).decode('utf-8')
-            match_conditions.append(f"MATCH (n)-[:dr]->({node_name}:{NodeLabels.Data.value})")
-            match_where.append(f"{node_name}.dr = '{data_as_string}'")
+        # if tuple_query.end_timestamp:
+        #     self.build_where(match_where, "n", "endTimestamp", str(tuple_query.end_timestamp))
 
-        # Data type Rui
-        if query.datatype:
-            node_name = "nuui"
-            match_conditions.append(f"MATCH (n)-[:uui]->({node_name}:Type)")
-            match_where.append(f"{node_name}.uui = '{query.datatype}'")
+        if tuple_query.ta:
+            self.build_condition(match_conditions, RelationshipLabels.ta.value, "nta", NodeLabels.Temporal.value)
+            self.build_where(match_where, "nta", "rui", str(tuple_query.ta))
 
-        # Error code
-        if query.change_code:
-            match_where.append(f"n.e = '{query.change_code}'")
+        if tuple_query.tr:
+            self.build_condition(match_conditions, RelationshipLabels.tr.value, "ntr", NodeLabels.Temporal.value)
+            self.build_where(match_where, "ntr", "rui", str(tuple_query.tr))
 
-        # Naming system Rui
-        if query.universal_rui:
-            node_name = "niuins"
-            match_conditions.append(f"MATCH (n)-[:iuins]->({node_name}:Instance)")
-            match_where.append(f"{node_name}.iui = '{query.universal_rui}'")
+        #TODO Check if this has to be lower
+        if tuple_query.polarity is not None:
+            self.build_where(match_where, "n", "polarity", str(tuple_query.polarity).lower())
 
-        # Referent Rui
-        if query.relationship_rui:
-            node_name = "niuip"
-            match_conditions.append(f"MATCH (n)-[:iuip]->({node_name}:Instance)")
-            match_where.append(f"{node_name}.iui = '{query.relationship_rui}'")
+        if tuple_query.change_code:
+            self.build_where(match_where, "n", "event_reason", str(tuple_query.change_code))
 
-        # Relationship Uui
-        if query.relationship_rui:
-            node_name = "nr"
-            match_conditions.append(f"MATCH (n)-[:r]->({node_name}:Relation)")
-            match_where.append(f"{node_name}.rui = '{query.relationship_rui}'")
+        if tuple_query.change_reason:
+            self.build_where(match_where, "n", "c", str(tuple_query.change_reason))
 
-        # Temporal reference
-        if query.tr:
-            match_conditions.append(f"MATCH (n)-[:tr]->(tr:TemporalRegion)")
-            match_where.append(f"tr.tref = '{query.tr}'")
+        if tuple_query.concept_code:
+            self.build_condition(match_conditions, RelationshipLabels.code, "ncode", NodeLabels.Concept)
+            self.build_where(match_where, "ncode", "code", tuple_query.concept_code)
 
-        # Particular reference list (p_list)
-        if query.p_list:
-            p_seq = 1
-            for pr in query.p_list:
-                node_name = f"p{p_seq}"
-                label = "Instance" if isinstance(pr, Rui) else "TemporalRegion"
-                prop_name = "iui" if isinstance(pr, Rui) else "tref"
-                match_conditions.append(f"MATCH (n)-[:p]->({node_name}:{label})")
-                match_where.append(f"{node_name}.{prop_name} = '{pr}'")
-                p_seq += 1
+        if tuple_query.confidence is not None:
+            self.build_where(match_where, "n", "C", str(tuple_query.confidence))
 
-        # Tuple types
+        if tuple_query.data:
+            data_as_str = base64.b64encode(tuple_query.data).decode('utf-8')
+            self.build_condition(match_conditions, "dr", "ndr", NodeLabels.Data.value)
+            self.build_where(match_where, "ndr", "dr", data_as_str)
+
+        # if tuple_query.datatype:
+        #     self.build_condition(match_conditions, "uui", "nuui", "TYPE")
+        #     self.build_where(match_where, "nuui", "uui", str(tuple_query.datatype))
+
+        if tuple_query.relationship:
+            self.build_condition(match_conditions, "r", "nr", NodeLabels.Relation.value)
+            self.build_where(match_where, "nr", "uri", str(tuple_query.relationship))
+
+        #TODO Ensure that order is enforced for p_list and replacements
+        if tuple_query.p_list:
+            for idx, ref in enumerate(tuple_query.p_list):
+                node_name = f"p{idx}"
+                self.build_condition(match_conditions, "p", node_name, "")
+                self.build_where(match_where, node_name, "rui", str(ref))
+
+        if tuple_query.replacements:
+            for idx, replacement in enumerate(tuple_query.replacements):
+                node_name = f"replacement{idx}"
+                self.build_condition(match_conditions, "replacements", node_name, "")
+                self.build_where(match_where, node_name, "rui", str(replacement))
+
+        types = tuple_query.types
         query_match = []
-        if query.types:
-            for tup_type in query.types:
-                query_match.append(f"MATCH (n:{tup_type})")
+        
+        if types:
+            for tup_type in types:
+                query_match.append(f"OPTIONAL MATCH (n:{tup_type})")
                 query_match.extend(match_conditions)
                 if match_where:
-                    query_match.append(f"WHERE {' AND '.join(match_where)}")
-                query_match.append("RETURN n AS aResult")
-                if tup_type != list(query.types)[-1]:
-                    query_match.append("UNION")
+                    query_match.append(" WHERE ")
+                    query_match.extend(match_where)
+                query_match.append(" RETURN n as aResult")
+                if tup_type != types[-1]:
+                    query_match.append(" UNION ")
         else:
-            query_match.append("MATCH (n:tuple)")
+            query_match.append(f"MATCH (n:)")
             query_match.extend(match_conditions)
             if match_where:
-                query_match.append(f"WHERE {' AND '.join(match_where)}")
-            query_match.append("RETURN n AS aResult")
+                query_match.append(" WHERE ")
+                query_match.extend(match_where)
+            query_match.append(" RETURN n as aResult")
 
-        # Build the final query string
-        query_string = "\n".join(query_match)
-
-        result_set = set()
-        tx = self.transaction_manager.start_transaction
-        result = tx.run(query_string)
+        query = "".join(query_match)
+        tx = self.transaction_manager.start_transaction()
+        result_set = []
+        result = tx.run(query)
+        #TODO Make sure that each result is just one tuple and not a list of tuples
         for record in result:
             node = record["aResult"]
-            rui = node["rui"]
-            result_set.add(self.get_tuple(rui))
-        tx.commit()
+            if node:
+                result_set.append(node)  
 
         return result_set
 
