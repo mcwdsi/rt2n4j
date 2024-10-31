@@ -1,10 +1,11 @@
-from rt_core_v2.rttuple import RtTupleVisitor, RtTuple, ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNTuple, NtoRTuple, NtoCTuple, NtoDETuple, NtoLackRTuple, TupleType, TupleComponents, AttributesVisitor, RuiStatus, PorType, TempRef
-from rt_core_v2.ids_codes.rui import Rui, Relationship
+from rt_core_v2.rttuple import RtTupleVisitor, RtTuple, ANTuple, ARTuple, DITuple, DCTuple, FTuple, NtoNTuple, NtoRTuple, NtoCTuple, NtoDETuple, NtoLackRTuple, TupleType, TupleComponents, AttributesVisitor, RuiStatus, PorType
+from rt_core_v2.ids_codes.rui import ISO_Rui, ID_Rui, Rui, Relationship, TempRef, UUI
 from rt_core_v2.metadata import TupleEventType, RtChangeReason
 from enum import Enum
 from datetime import datetime
 import uuid
 import base64
+import re
 
 """
 Enum for defining various node labels used in Cypher queries.
@@ -31,25 +32,55 @@ class NodeLabels(Enum):
 
 class Neo4jEntryConverter:
     """Contains functions for converting neo4j representation to and from tuple representation"""
+    format = "%Y-%m-%d %H:%M:%S.%f%z"
     @staticmethod
     def str_to_rui(x: str) -> Rui:
-        return Rui(uuid.UUID(x))
+        if ':' in x:
+            return Neo4jEntryConverter.str_to_isorui(x)
+        else:
+            return Neo4jEntryConverter.str_to_idrui(x)
+    
     @staticmethod
     def lst_to_ruis(x: list[str]) -> list[Rui]:
-        return [Rui(uuid.UUID(entry)) for entry in x]
+        # return [Rui(uuid.UUID(entry)) for entry in x]
+        return [Neo4jEntryConverter.str_to_rui(entry) for entry in x]
+
+
+    @staticmethod
+    def str_to_idrui(x: str) -> ID_Rui:
+        val = uuid.UUID(x)
+        return ID_Rui(val)
+    
+    @staticmethod
+    def str_to_isorui(x: str) -> ISO_Rui:
+        return ISO_Rui(datetime.strptime(x, Neo4jEntryConverter.format))
+
+    @staticmethod 
+    def str_to_uui(x: str) -> uuid.UUID:
+        return UUI(x)
+    
+    @staticmethod
+    def str_to_relationship(x: str) -> Relationship:
+        return Relationship(x)
+
+    @staticmethod
+    def lst_to_ruis(x: list[str]) -> list[Rui]:
+        return [Neo4jEntryConverter.str_to_rui(entry) for entry in x]
 
     @staticmethod
     def str_to_str(x: str):
         return x
     
     @staticmethod
+    def process_datetime(x: str):
+        return datetime.strptime(x, Neo4jEntryConverter.format)
+    
+    @staticmethod
     def process_temp_ref(x: str):
-        #UUIDs do not contain colons. A bit hacky, so find a better way to differentiate.
         if ':' in x:
-            format = "%Y-%m-%d %H:%M:%S.%f%z"
-            time_data = datetime.strptime(x, format)
+            time_data = Neo4jEntryConverter.str_to_isorui(x)
         else:
-            time_data = Rui(uuid.UUID(x))
+            time_data = Neo4jEntryConverter.str_to_idrui(x)
         return TempRef(time_data)
     
     @staticmethod
@@ -61,19 +92,18 @@ class Neo4jEntryConverter:
         return base64.b64decode(x)
 
 neo4j_entry_converter = {
-    TupleComponents.rui: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruin: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruia: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruid: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruin: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruir: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruics: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruidt: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruit: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruitn: Neo4jEntryConverter.str_to_rui,
-    TupleComponents.ruio: Neo4jEntryConverter.str_to_rui,
-    #TODO Change this for timestamp
-    TupleComponents.t: lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f%z"),
+    TupleComponents.rui: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruin: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruia: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruid: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruin: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruir: Neo4jEntryConverter.str_to_uui,
+    TupleComponents.ruics: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruidt: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruit: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruitn: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.ruio: Neo4jEntryConverter.str_to_idrui,
+    TupleComponents.t: Neo4jEntryConverter.process_datetime,
     TupleComponents.ta: Neo4jEntryConverter.process_temp_ref,
     TupleComponents.tr: Neo4jEntryConverter.process_temp_ref,
     TupleComponents.ar: lambda x: RuiStatus(x),
@@ -84,8 +114,7 @@ neo4j_entry_converter = {
     TupleComponents.p_list: Neo4jEntryConverter.lst_to_ruis,
     TupleComponents.C: lambda x: float(x),
     TupleComponents.polarity: lambda x: bool(x),
-    TupleComponents.r: Neo4jEntryConverter.str_to_rui,
-    # TODO Figure out the types of code and data
+    TupleComponents.r: Neo4jEntryConverter.str_to_relationship,
     TupleComponents.code: Neo4jEntryConverter.str_to_str,
     TupleComponents.data: Neo4jEntryConverter.str_to_bytes,
     TupleComponents.type: lambda x: TupleType(x),
@@ -128,8 +157,15 @@ class RelationshipLabels(Enum):
     code = TupleComponents.code.value
 
 class TupleInsertionVisitor(RtTupleVisitor):
-    def __init__(self, driver):
-        self.driver = driver
+    """
+    Visitor class for handling different types of tuples and generating corresponding Cypher queries for insertion.
+
+    Attributes:
+    get_attr -- A static visitor that retrieves a tuple's attributes
+    """
+
+    def __init__(self):
+        self.tx = None
     
 
     def convert_att_neo4j(self, attribute):
@@ -140,12 +176,9 @@ class TupleInsertionVisitor(RtTupleVisitor):
             return attribute.value
         return str(attribute)
     
-    """
-    Visitor class for handling different types of tuples and generating corresponding Cypher queries for insertion.
-
-    Attributes:
-    get_attr -- A static visitor that retrieves a tuple's attributes
-    """
+    def set_transaction(self, tx):
+        self.tx = tx  # Set the transaction when it starts
+    
     get_attr = AttributesVisitor()
 
     def visit(self, host: RtTuple):
@@ -156,37 +189,36 @@ class TupleInsertionVisitor(RtTupleVisitor):
             host (RtTuple): The tuple to be visited.
 
         """
+        if self.tx is None:
+            raise RuntimeError("Transaction has not been set!")
         attributes = host.accept(self.get_attr)
         pop_key(attributes, TupleComponents.type.value)
         query = None
         attributes = {key: self.convert_att_neo4j(value) for key, value in attributes.items()}
-        #TODO Move session control out of insertion and into RtStore
-        with self.driver.session() as session:
-            with session.begin_transaction() as tx:
-                match host.tuple_type:
-                    case TupleType.AN:
-                        query = self.visit_an(host, attributes, tx)
-                    case TupleType.AR:
-                        query = self.visit_ar(host, attributes, tx)
-                    case TupleType.DI:
-                        query = self.visit_di(host, attributes, tx)
-                    case TupleType.DC:
-                        query = self.visit_dc(host, attributes, tx)
-                    case TupleType.F:
-                        query = self.visit_f(host, attributes, tx)
-                    case TupleType.NtoN:
-                        query = self.visit_nton(host, attributes, tx)
-                    case TupleType.NtoR:
-                        query = self.visit_ntor(host, attributes, tx)
-                    case TupleType.NtoC:
-                        query = self.visit_ntoc(host, attributes, tx)
-                    case TupleType.NtoDE:
-                        query = self.visit_ntode(host, attributes, tx)
-                    case TupleType.NtoLackR:
-                        query = self.visit_ntolackr(host, attributes, tx)
+        match host.tuple_type:
+            case TupleType.AN:
+                query = self.visit_an(host, attributes)
+            case TupleType.AR:
+                query = self.visit_ar(host, attributes)
+            case TupleType.DI:
+                query = self.visit_di(host, attributes)
+            case TupleType.DC:
+                query = self.visit_dc(host, attributes)
+            case TupleType.F:
+                query = self.visit_f(host, attributes)
+            case TupleType.NtoN:
+                query = self.visit_nton(host, attributes)
+            case TupleType.NtoR:
+                query = self.visit_ntor(host, attributes)
+            case TupleType.NtoC:
+                query = self.visit_ntoc(host, attributes)
+            case TupleType.NtoDE:
+                query = self.visit_ntode(host, attributes)
+            case TupleType.NtoLackR:
+                query = self.visit_ntolackr(host, attributes)
         return query
 
-    def visit_an(self, host: ANTuple, attributes: dict, tx):
+    def visit_an(self, host: ANTuple, attributes: dict):
         """
         Generates a Cypher query for an ANTuple.
 
@@ -195,14 +227,14 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the ANTuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
                CREATE (an:{NodeLabels.AN.value} {{rui: $rui, ar: $ar, unique: $unique}}) 
                CREATE (npor:{NodeLabels.NPoR.value} {{rui:$ruin}})
                CREATE (an)-[:{RelationshipLabels.ruin.value}]->(npor)
                """, **attributes)
         
     
-    def visit_ar(self, host: ARTuple, attributes: dict, tx):
+    def visit_ar(self, host: ARTuple, attributes: dict):
         """
         Generates a Cypher query for an ARTuple.
 
@@ -211,13 +243,13 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the ARTuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
                CREATE (ar:{NodeLabels.AR.value} {{rui: $rui, ar: $ar, unique: $unique, ruio: $ruio}}) 
-               CREATE (rpor:{NodeLabels.RPoR.value} {{rui:$ruir}})
+               CREATE (rpor:{NodeLabels.RPoR.value} {{uui:$ruir}})
                CREATE (ar)-[:{RelationshipLabels.ruir.value}]->(rpor)
                """, **attributes)
 
-    def visit_di(self, host: DITuple, attributes: dict, tx):
+    def visit_di(self, host: DITuple, attributes: dict):
         """
         Generates a Cypher query for a DITuple.
 
@@ -226,7 +258,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the DITuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
             CREATE (di:{NodeLabels.DI.value} {{rui: $rui, t: $t, event_reason: $event_reason}})
 
             WITH di
@@ -246,7 +278,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (di)-[:{RelationshipLabels.ta.value}]->(ta)
             """, **attributes)
 
-    def visit_dc(self, host: DCTuple, attributes: dict, tx):
+    def visit_dc(self, host: DCTuple, attributes: dict):
         """
         Generates a Cypher query for a DCTuple.
 
@@ -276,9 +308,9 @@ class TupleInsertionVisitor(RtTupleVisitor):
                     CREATE (dc)-[:{RelationshipLabels.replacement.value} {{replacements:{str(idx)}}}]->({TupleComponents.replacements.value})"""
             
         pop_key(attributes, TupleComponents.replacements.value)
-        return tx.run(query, **attributes)
+        return self.tx.run(query, **attributes)
 
-    def visit_f(self, host: FTuple, attributes: dict, tx):
+    def visit_f(self, host: FTuple, attributes: dict):
         """
         Generates a Cypher query for an FTuple.
 
@@ -287,14 +319,13 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the FTuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
                MATCH (tup {{rui:$ruitn}})
                CREATE (f:{NodeLabels.F.value} {{rui: $rui, C: $C}}) 
                CREATE (f)-[:{RelationshipLabels.ruitn.value}]->(tup)
                """, **attributes)
 
-    # TODO Figure out how to implement relationship nodes
-    def visit_nton(self, host: NtoNTuple, attributes: dict, tx):
+    def visit_nton(self, host: NtoNTuple, attributes: dict):
         """
         Generates a Cypher query for an NtoNTuple.
 
@@ -307,7 +338,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (nton:{NodeLabels.NtoN.value} {{rui: $rui, polarity: $polarity}})
 
             WITH nton
-            MATCH (r {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{uri: $r}})
             CREATE (nton)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH nton
@@ -323,9 +354,9 @@ class TupleInsertionVisitor(RtTupleVisitor):
                     CREATE (nton)-[:{RelationshipLabels.p_list.value} {{p:{str(idx)}}}]->({TupleComponents.p_list.value})"""
             
         pop_key(attributes, TupleComponents.p_list.value)
-        return tx.run(query, **attributes)
+        return self.tx.run(query, **attributes)
     
-    def visit_ntor(self, host: NtoRTuple, attributes: dict, tx):
+    def visit_ntor(self, host: NtoRTuple, attributes: dict):
         """
         Generates a Cypher query for an NtoRTuple.
 
@@ -334,7 +365,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the NtoRTuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
             CREATE (ntor:{NodeLabels.NtoR.value} {{rui: $rui, polarity: $polarity}})
 
             WITH ntor
@@ -342,11 +373,11 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntor)-[:{RelationshipLabels.ruin.value}]->(ruin)
 
             WITH ntor
-            MATCH (ruir {{rui: $ruir}})
+            MATCH (ruir {{uui: $ruir}})
             CREATE (ntor)-[:{RelationshipLabels.ruir.value}]->(ruir)
 
             WITH ntor
-            MATCH (r {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{uri: $r}})
             CREATE (ntor)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH ntor
@@ -354,7 +385,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntor)-[:{RelationshipLabels.tr.value}]->(tr)
             """, **attributes)
 
-    def visit_ntoc(self, host: NtoCTuple, attributes: dict, tx):
+    def visit_ntoc(self, host: NtoCTuple, attributes: dict):
         """
         Generates a Cypher query for an NtoCTuple, ensuring that the `code` node has a unique relationship to `ruics`.
 
@@ -362,11 +393,11 @@ class TupleInsertionVisitor(RtTupleVisitor):
             host (NtoCTuple): The NtoCTuple instance.
             attributes (dict): Attributes of the NtoCTuple.
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
             CREATE (ntoc:{NodeLabels.NtoC.value} {{rui: $rui, polarity: $polarity}})
 
             WITH ntoc
-            MATCH (r {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{uri: $r}})
             CREATE (ntoc)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH ntoc
@@ -374,26 +405,26 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntoc)-[:{RelationshipLabels.ruin.value}]->(ruin)
 
             WITH ntoc
+            MERGE (tr:{NodeLabels.Temporal.value} {{rui: $tr}})
+            CREATE (ntoc)-[:{RelationshipLabels.tr.value}]->(tr)
+
+            WITH ntoc
             MATCH (ruics {{rui: $ruics}})
-            OPTIONAL MATCH (code_node:Code {{code: $code}})-[:{RelationshipLabels.ruics.value}]->(ruics {{rui: $ruics}})
-            
+            OPTIONAL MATCH (code_node:{NodeLabels.Concept.value} {{code: $code}})-[:{RelationshipLabels.ruics.value}]->(ruics {{rui: $ruics}})
+
             WITH ntoc, code_node, ruics
-            CALL {{
-                WITH code_node, ruics
+            CALL (code_node, ruics){{
                 WITH * WHERE code_node IS NULL
-                CREATE (new_code_node:Code {{code: $code}})
+                CREATE (new_code_node:{NodeLabels.Concept.value} {{code: $code}})
                 CREATE (new_code_node)-[:{RelationshipLabels.ruics.value}]->(ruics)
                 RETURN new_code_node
             }}
             WITH ntoc, COALESCE(new_code_node, code_node) AS final_code_node
             CREATE (ntoc)-[:{RelationshipLabels.code.value}]->(final_code_node)
-
-            WITH ntoc
-            MERGE (tr:{NodeLabels.Temporal.value} {{rui: $tr}})
-            CREATE (ntoc)-[:{RelationshipLabels.tr.value}]->(tr)
         """, **attributes)
 
-    def visit_ntode(self, host: NtoDETuple, attributes: dict, tx):
+
+    def visit_ntode(self, host: NtoDETuple, attributes: dict):
         """
         Generates a Cypher query for an NtoDETuple, ensuring the `data` is stored in a separate node.
 
@@ -403,7 +434,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
         """
         attributes[TupleComponents.data.value] = base64.b64encode(host.data).decode('utf-8')
 
-        return tx.run(f"""
+        return self.tx.run(f"""
             CREATE (ntode:{NodeLabels.NtoDE.value} {{rui: $rui, polarity: $polarity}})
 
             WITH ntode
@@ -411,12 +442,11 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntode)-[:{RelationshipLabels.ruin.value}]->(ruin)
 
             WITH ntode
-            MATCH (ruidt {{rui: $ruidt}})
+            MATCH (ruidt {{uui: $ruidt}})
             OPTIONAL MATCH (data_node:{NodeLabels.Data.value} {{data: $data}})-[:{RelationshipLabels.ruidt.value}]->(ruidt)
 
             WITH ntode, data_node, ruidt
-            CALL {{
-                WITH data_node, ruidt
+            CALL (data_node, ruidt){{
                 WITH * WHERE data_node IS NULL
                 CREATE (new_data_node:{NodeLabels.Data.value} {{data: $data}})
                 CREATE (new_data_node)-[:{RelationshipLabels.ruidt.value}]->(ruidt)
@@ -428,7 +458,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
         """, **attributes)
 
     
-    def visit_ntolackr(self, host: NtoLackRTuple, attributes: dict, tx):
+    def visit_ntolackr(self, host: NtoLackRTuple, attributes: dict):
         """
         Generates a Cypher query for an NtoLackRTuple.
 
@@ -437,7 +467,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
             attributes (dict): Attributes of the NtoLackRTuple.
 
         """
-        return tx.run(f"""
+        return self.tx.run(f"""
             CREATE (ntolackr:{NodeLabels.NtoLackR.value} {{rui: $rui}})
 
             WITH ntolackr
@@ -445,11 +475,11 @@ class TupleInsertionVisitor(RtTupleVisitor):
             CREATE (ntolackr)-[:{RelationshipLabels.ruin.value}]->(ruin)
 
             WITH ntolackr
-            MATCH (ruir {{rui: $ruir}})
+            MATCH (ruir {{uui: $ruir}})
             CREATE (ntolackr)-[:{RelationshipLabels.ruir.value}]->(ruir)
 
             WITH ntolackr
-            MATCH (r {{rui: $r}})
+            MERGE (r:{NodeLabels.Relation.value} {{uri: $r}})
             CREATE (ntolackr)-[:{RelationshipLabels.r.value}]->(r)
 
             WITH ntolackr
@@ -459,7 +489,7 @@ class TupleInsertionVisitor(RtTupleVisitor):
 
         
 
-def tuple_query(tuple_rui: Rui, driver):
+def tuple_query(tuple_rui: Rui, tx):
     """
     Visits a tuple and generates a Cypher query based on the tuple's type.
     Retrieves the data and recreates the corresponding RtTuple object.
@@ -472,44 +502,43 @@ def tuple_query(tuple_rui: Rui, driver):
         RtTuple: The recreated tuple based on the retrieved data.
     """
     retrieved_tuple = None
-    with driver.session() as session:
-        with session.begin_transaction() as tx:
-            # First, determine the label of the node by matching the rui
-            result = tx.run(f"""
-                MATCH (node {{rui: $rui}})
-                RETURN labels(node) AS labels
-            """, rui=str(tuple_rui))
 
-            record = result.single()
-            if not record:
-                raise ValueError(f"No node found for Rui: {tuple_rui}")
+    # First, determine the label of the node by matching the rui
+    result = tx.run(f"""
+        MATCH (node {{rui: $rui}})
+        RETURN labels(node) AS labels
+    """, rui=str(tuple_rui))
 
-            labels = record["labels"]
+    record = result.single()
+    if not record:
+        raise ValueError(f"No node found for Rui: {tuple_rui}")
 
-            # Match the node label to the correct tuple type
-            match labels:
-                case [NodeLabels.AN.value]:
-                    retrieved_tuple = query_an(tuple_rui, tx)
-                case [NodeLabels.AR.value]:
-                    retrieved_tuple = query_ar(tuple_rui, tx)
-                case [NodeLabels.DI.value]:
-                    retrieved_tuple = query_di(tuple_rui, tx)
-                case [NodeLabels.DC.value]:
-                    retrieved_tuple = query_dc(tuple_rui, tx)
-                case [NodeLabels.F.value]:
-                    retrieved_tuple = query_f(tuple_rui, tx)
-                case [NodeLabels.NtoN.value]:
-                    retrieved_tuple = query_nton(tuple_rui, tx)
-                case [NodeLabels.NtoR.value]:
-                    retrieved_tuple = query_ntor(tuple_rui, tx)
-                case [NodeLabels.NtoC.value]:
-                    retrieved_tuple = query_ntoc(tuple_rui, tx)
-                case [NodeLabels.NtoDE.value]:
-                    retrieved_tuple = query_ntode(tuple_rui, tx)
-                case [NodeLabels.NtoLackR.value]:
-                    retrieved_tuple = query_ntolackr(tuple_rui, tx)
-                case _:
-                    raise ValueError(f"Unknown tuple type for labels: {labels}")
+    labels = record["labels"]
+
+    # Match the node label to the correct tuple type
+    match labels:
+        case [NodeLabels.AN.value]:
+            retrieved_tuple = query_an(tuple_rui, tx)
+        case [NodeLabels.AR.value]:
+            retrieved_tuple = query_ar(tuple_rui, tx)
+        case [NodeLabels.DI.value]:
+            retrieved_tuple = query_di(tuple_rui, tx)
+        case [NodeLabels.DC.value]:
+            retrieved_tuple = query_dc(tuple_rui, tx)
+        case [NodeLabels.F.value]:
+            retrieved_tuple = query_f(tuple_rui, tx)
+        case [NodeLabels.NtoN.value]:
+            retrieved_tuple = query_nton(tuple_rui, tx)
+        case [NodeLabels.NtoR.value]:
+            retrieved_tuple = query_ntor(tuple_rui, tx)
+        case [NodeLabels.NtoC.value]:
+            retrieved_tuple = query_ntoc(tuple_rui, tx)
+        case [NodeLabels.NtoDE.value]:
+            retrieved_tuple = query_ntode(tuple_rui, tx)
+        case [NodeLabels.NtoLackR.value]:
+            retrieved_tuple = query_ntolackr(tuple_rui, tx)
+        case _:
+            raise ValueError(f"Unknown tuple type for labels: {labels}")
     return retrieved_tuple
 
 def query_an(rui: Rui, tx):
@@ -528,7 +557,7 @@ def query_ar(rui: Rui, tx):
     result = tx.run(f"""
         MATCH (ar:{NodeLabels.AR.value} {{rui: $rui}})
         OPTIONAL MATCH (ar)-[:{RelationshipLabels.ruir.value}]->(rpor:{NodeLabels.RPoR.value})
-        RETURN ar.ar AS ar, ar.unique AS unique, ar.ruio AS ruio, ar.rui AS rui, rpor.rui AS ruir
+        RETURN ar.ar AS ar, ar.unique AS unique, ar.ruio AS ruio, ar.rui AS rui, rpor.uui AS ruir
     """, rui=str(rui))
     
     record = result.single()
@@ -607,7 +636,7 @@ def query_nton(rui: Rui, tx):
         OPTIONAL MATCH (nton)-[:{RelationshipLabels.r.value}]->(r)
         OPTIONAL MATCH (nton)-[:{RelationshipLabels.tr.value}]->(tr)
         OPTIONAL MATCH (nton)-[rel:{RelationshipLabels.p_list.value}]->(p)
-        RETURN nton.polarity AS polarity, nton.rui AS rui, r.rui AS r, tr.rui AS tr, p.rui AS p_rui, rel.p AS p
+        RETURN nton.polarity AS polarity, nton.rui AS rui, r.uri AS r, tr.rui AS tr, p.rui AS p_rui, rel.p AS p
         ORDER BY p
     """, rui=str(rui))
 
@@ -644,7 +673,7 @@ def query_ntor(rui: Rui, tx):
         OPTIONAL MATCH (ntor)-[:{RelationshipLabels.ruir.value}]->(ruir)
         OPTIONAL MATCH (ntor)-[:{RelationshipLabels.r.value}]->(r)
         OPTIONAL MATCH (ntor)-[:{RelationshipLabels.tr.value}]->(tr)
-        RETURN ntor.polarity AS polarity, ntor.rui AS rui, ruin.rui AS ruin, ruir.rui AS ruir, tr.rui AS tr, r.rui AS r
+        RETURN ntor.polarity AS polarity, ntor.rui AS rui, ruin.rui AS ruin, ruir.uui AS ruir, tr.rui AS tr, r.uri AS r
     """, rui=str(rui))
 
     record = result.single()
@@ -660,14 +689,13 @@ def query_ntolackr(rui: Rui, tx):
         OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.ruir.value}]->(ruir)
         OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.r.value}]->(r)
         OPTIONAL MATCH (ntolackr)-[:{RelationshipLabels.tr.value}]->(tr)
-        RETURN ntolackr.rui AS rui, ruin.rui AS ruin, ruir.rui AS ruir, tr.rui AS tr, r.rui AS r
+        RETURN ntolackr.rui AS rui, ruin.rui AS ruin, ruir.uui AS ruir, tr.rui AS tr, r.uri AS r
     """, rui=str(rui))
 
     record = result.single()
     if record:
         return NtoLackRTuple(**neo4j_to_rttuple(record))
     return None
-
 
 def query_ntoc(rui: Rui, tx):
     result = tx.run(f"""
@@ -676,7 +704,7 @@ def query_ntoc(rui: Rui, tx):
         OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.ruin.value}]->(ruin)
         OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.code.value}]->(code_node)-[:{RelationshipLabels.ruics.value}]->(ruics)
         OPTIONAL MATCH (ntoc)-[:{RelationshipLabels.tr.value}]->(tr)
-        RETURN ntoc.polarity AS polarity, ntoc.rui AS rui, r.rui AS r, ruin.rui AS ruin, 
+        RETURN ntoc.polarity AS polarity, ntoc.rui AS rui, r.uri AS r, ruin.rui AS ruin, 
                code_node.code AS code, ruics.rui AS ruics, tr.rui AS tr
     """, rui=str(rui))
 
@@ -687,7 +715,6 @@ def query_ntoc(rui: Rui, tx):
 
     return None
 
-
 def query_ntode(rui: Rui, tx):
     #TODO Not properly retrieving the data
     result = tx.run(f"""
@@ -695,7 +722,7 @@ def query_ntode(rui: Rui, tx):
         OPTIONAL MATCH (ntode)-[:{RelationshipLabels.ruin.value}]->(ruin)
         OPTIONAL MATCH (ntode)-[:{RelationshipLabels.data.value}]->(data_node)-[:{RelationshipLabels.ruidt.value}]->(ruidt)
         RETURN ntode.polarity AS polarity, ntode.rui AS rui, ruin.rui AS ruin, 
-               data_node.data AS data, ruidt.rui AS ruidt
+               data_node.data AS data, ruidt.uui AS ruidt
     """, rui=str(rui))
 
     record = result.single()
@@ -706,8 +733,6 @@ def query_ntode(rui: Rui, tx):
         return NtoDETuple(**neo4j_to_rttuple(record_dict))
 
     return None
-
-
 
 
 """Removes a key from a dictionary and returns the value"""

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "8c49b071b4f7ab7b800d1e4bb25490fa7fc85a8c1bf6e0c2e82b63d6ae38f6a1"
+            "sha256": "965fa0b6233868bb3df7496d51d82657229f80847063f247def82387282f425a"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -18,12 +18,12 @@
     "default": {
         "neo4j": {
             "hashes": [
-                "sha256:499ca35135847528f4ee70314bd49c8b08b031e4dfd588bb06c1c2fb35d729e2",
-                "sha256:5b4705cfe8130020f33e75e31ad3fcfe67ee958e07d0c3c4936e9c8245a1ea58"
+                "sha256:7c82001c45319092cc0b5df4c92894553b7ab97bd4f59655156fa9acab83aec9",
+                "sha256:df310eee9a4f9749fb32bb9f1aa68711ac417b7eba3e42faefd6848038345ffa"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.7'",
-            "version": "==5.24.0"
+            "version": "==5.25.0"
         },
         "pytz": {
             "hashes": [
@@ -34,7 +34,7 @@
         },
         "rt-two": {
             "editable": true,
-            "path": "../../rt2"
+            "path": "../rt2"
         },
         "uuid6": {
             "hashes": [

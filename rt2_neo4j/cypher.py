@@ -2,6 +2,7 @@ from enum import Enum
 from abc import ABC, abstractmethod
 from functools import reduce
 
+#Deprecated
 class CypherComponent(ABC):
     """
     Abstract base class representing a Cypher component.

@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-rt_two = {path = "../../rt2", editable = true}
+rt_two = {path = "../rt2", editable = true}
 neo4j = "*"
 
 [dev-packages]
