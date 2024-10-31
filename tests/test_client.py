@@ -13,19 +13,16 @@ with store.driver.session() as session:
     session.run("MATCH (n) DETACH DELETE n")
 
 def test_save_and_get_tuple():
-    # Create a sample ANTuple
     tuple_an = ANTuple()
     # Save the tuple to the store
     store.save_tuple(tuple_an)
     store.commit()
-    # Retrieve the saved tuple using its rui
     retrieved_tuple = store.get_tuple(tuple_an.rui)
     
     # Assert that the retrieved tuple matches the original
     assert retrieved_tuple == tuple_an, "The retrieved tuple should match the saved tuple."
 
 def test_get_by_author():
-    # Create two tuples with different authors
     author_rui = ID_Rui()
     tuple_an = ANTuple(ruin=author_rui)
     tuple_di = DITuple(ruit=tuple_an.rui, ruia=author_rui, ruid=author_rui)
@@ -39,7 +36,6 @@ def test_get_by_author():
     assert tuple_an == retrieved_tuples[0]
 
 def test_get_available_rui():
-    # Create tuples
     tuple_an = ANTuple()
     tuple_an2 = ANTuple()
     
@@ -47,7 +43,6 @@ def test_get_available_rui():
     store.save_tuple(tuple_an)
     store.save_tuple(tuple_an2)
     
-    # Get all available ruis
     available_rui = store.get_available_rui()
     
     # Verify that the ruis of the inserted tuples are in the returned set
@@ -63,6 +58,7 @@ def setup_test_data():
     referent_rui = ID_Rui()
     designator_txt = b"test designator text"
     
+    #TODO Rename these variable names for clarity
     data_type_creator = ANTuple(ruin=designator_rui)
     named_creator = ANTuple(ruin=referent_rui)
     repeatable_creator = ARTuple()

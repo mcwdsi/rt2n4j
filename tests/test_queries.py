@@ -10,7 +10,6 @@ auth = ("neo4j", "neo4jneo4j")
 config = {}
 
 driver = GraphDatabase.driver(uri, auth=auth, **config)
-# Sample usage
 
 
 with driver.session() as session:
