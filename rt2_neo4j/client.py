@@ -6,26 +6,65 @@ from rt2_neo4j.queries import TupleInsertionVisitor, tuple_query, Neo4jEntryConv
 import base64
 
 class Neo4jRtStore(RtStore):
+    """Handles storage and retrieval operations in a Neo4j database for RtTuple instances."""
 
     def __init__(self, uri, auth, config={}):
+        """Initializes the Neo4j driver, insertion visitor, and transaction manager.
+        
+        Args:
+            uri (str): URI for connecting to the Neo4j database.
+            auth (tuple): Authentication credentials for the Neo4j database.
+            config (dict): Additional configuration settings for the Neo4j driver.
+        """
         self.driver = GraphDatabase.driver(uri, auth=auth, **config)
         self.insertion_visitor = TupleInsertionVisitor()
         self.transaction_manager = TransactionManager(self.driver)
 
     def save_tuple(self, tup: RtTuple) -> bool:
+        """Saves a tuple to the Neo4j database using the insertion visitor.
+        
+        Args:
+            tup (RtTuple): Tuple to be saved in the database.
+
+        Returns:
+            bool: True if the tuple was saved successfully, False otherwise.
+        """
         tx = self.transaction_manager.start_transaction()
         self.insertion_visitor.set_transaction(tx)
         tup.accept(self.insertion_visitor)
 
     def get_tuple(self, rui: Rui) -> RtTuple:
+        """Retrieves a tuple from the Neo4j database based on a unique identifier.
+        
+        Args:
+            rui (Rui): Unique identifier of the tuple to be retrieved.
+
+        Returns:
+            RtTuple: The tuple instance retrieved from the database.
+        """
         tx = self.transaction_manager.start_transaction()
         return tuple_query(rui, tx)
 
-    #TODO Decide if this is worth keeping
     def get_by_referent(self, rui: Rui) -> set[RtTuple]:
+        """Retrieves all tuples in the database that reference a specific entity.
+        
+        Args:
+            rui (Rui): Unique identifier of the referent.
+
+        Returns:
+            set[RtTuple]: Set of tuples that reference the specified entity.
+        """
         pass
 
     def get_by_author(self, rui: Rui) -> list[RtTuple]:
+        """Retrieves all tuples created by a specific author.
+        
+        Args:
+            rui (Rui): Unique identifier of the author.
+
+        Returns:
+            list[RtTuple]: List of tuples authored by the specified entity.
+        """
         tx = self.transaction_manager.start_transaction()
         result = tx.run(f"""
             MATCH (d_tuple:{NodeLabels.DI.value})-[:ruia]->(author {{rui: $ruia}})
@@ -34,8 +73,12 @@ class Neo4jRtStore(RtStore):
         """, ruia=str(rui))
         return [self.get_tuple(Neo4jEntryConverter.str_to_rui(record["rui"])) for record in result]
 
-
     def get_available_rui(self) -> list[Rui]:
+        """Retrieves all RUIs available in the Neo4j database.
+        
+        Returns:
+            list[Rui]: List of available RUIs in the database.
+        """
         tx = self.transaction_manager.start_transaction()
         result = tx.run("""
             MATCH (n) WHERE n.rui IS NOT NULL
@@ -83,12 +126,35 @@ class Neo4jRtStore(RtStore):
         return result_set
 
     def build_condition(self, match_conditions, rel, node_name, node_label):
+        """Appends a Cypher match condition for a relationship between nodes.
+        
+        This method builds a segment of the Cypher query that matches a relationship
+        between the main node 'n' and a secondary node, connected via a specified relationship type.
+
+        Args:
+            match_conditions (list): List that accumulates the Cypher match conditions.
+            rel (str): The type of relationship (label) between nodes.
+            node_name (str): Name of the secondary node in the relationship.
+            node_label (str): Label of the secondary node type in the relationship.
+        """
         match_conditions.append(f",(n)-[:{rel}]-({node_name}:{node_label})")
 
     def build_where(self, match_where, node_name, property_name, value):
+        """Appends a Cypher where clause condition to filter nodes by property values.
+        
+        Builds a segment of the Cypher query that specifies a filtering condition based on 
+        node properties, ensuring the query only matches nodes with the given property and value.
+
+        Args:
+            match_where (list): List that accumulates the Cypher where clause conditions.
+            node_name (str): Name of the node being filtered.
+            property_name (str): Property of the node to filter by.
+            value (str): Value the node property should match.
+        """
         if match_where:
             match_where.append(" AND ")
         match_where.append(f"{node_name}.{property_name}='{value}'")
+
 
     def run_query(self, tuple_query: TupleQuery):
         match_conditions = []
@@ -198,40 +264,82 @@ class Neo4jRtStore(RtStore):
 
 
     def commit(self):
+        """Commits the current transaction.
+        
+        Ensures that any changes made within the transaction are saved to the database.
+        """
         self.transaction_manager.commit_transaction()
 
     def rollback(self):
+        """Rolls back the current transaction.
+        
+        Reverts any changes made within the transaction, restoring the database to its previous state.
+        """
         self.transaction_manager.rollback_transaction()
     
     def shut_down(self):
+        """Closes the transaction manager and the Neo4j driver connection.
+        
+        Releases resources associated with the database connection, finalizing any pending actions.
+        """
         self.transaction_manager.close()
         self.driver.close()
 
+
 class TransactionManager:
+    """Manages transactions for Neo4j database interactions.
+    
+    This class ensures safe and consistent transaction handling by starting,
+    committing, and rolling back transactions, while managing the associated session.
+    """
+    
     def __init__(self, driver):
+        """Initializes the TransactionManager with the given Neo4j driver.
+        
+        Args:
+            driver: Neo4j driver instance used to create sessions and transactions.
+        """
         self.driver = driver
         self.current_tx = None
         self.session = None
 
     def start_transaction(self):
+        """Begins a new transaction if no transaction is active.
+        
+        Returns:
+            The active transaction, either a newly started one or an existing transaction.
+        """
         if self.current_tx is None:
             self.session = self.driver.session()
             self.current_tx = self.session.begin_transaction()
         return self.current_tx
 
     def commit_transaction(self):
+        """Commits the current transaction if it exists and closes the session.
+        
+        Ensures that any changes made within the transaction are saved to the database.
+        """
         if self.current_tx is not None:
             self.current_tx.commit()
             self.current_tx = None
             self.session.close()
 
     def rollback_transaction(self):
+        """Rolls back the current transaction if it exists and closes the session.
+        
+        Reverts any changes made within the transaction, restoring the database to its previous state.
+        """
         if self.current_tx is not None:
             self.current_tx.rollback()
             self.current_tx = None
             self.session.close()
 
     def close(self):
+        """Closes the current transaction manager session safely.
+        
+        Rolls back any ongoing transaction to ensure that no partial changes remain uncommitted.
+        """
         if self.current_tx is not None:
             self.rollback_transaction()
+
 
