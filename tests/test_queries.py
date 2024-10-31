@@ -35,6 +35,10 @@ tuple_ntode = NtoDETuple(ruin=replacement_one_an.ruin, ruidt=tuple_ar.ruir, data
 tuple_ntolackr = NtoLackRTuple(ruin=replacement_two_an.ruin, ruir=tuple_ar.ruir, r=r)
 
 
+def test_init():
+    with driver.session() as session:
+        session.run("MATCH (n) DETACH DELETE n")
+
 def test_an():
     # Test inserting and retrieving an ANTuple
     an_query = tuple_an.accept(insert_tuple)
